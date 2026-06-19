@@ -1,5 +1,5 @@
 /* ==========================================================================
-   BASHRC PS1 VISUALIZER - APPLICATION SCRIPT
+   DOTBASHRC - BASHRC BUILDER & VISUALIZER APPLICATION SCRIPT
    ========================================================================== */
 
 // Predefined Prompt Catalog
@@ -144,9 +144,40 @@ const state = {
   },
   ps1: TEMPLATES[0].ps1,
   terminalTheme: 'dracula',
-  activeTab: 'variables',
   activeCategory: 'all',
-  searchQuery: ''
+  searchQuery: '',
+  
+  // Extended state for bashrc generator
+  aliases: {
+    git: true,
+    nav: true,
+    safe: false,
+    custom: [
+      { name: 'c', value: 'clear' }
+    ]
+  },
+  functions: {
+    mkcd: true,
+    extract: true,
+    weather: false,
+    todo: false
+  },
+  options: {
+    autocd: true,
+    cdspell: true,
+    globstar: true,
+    histsize: 10000,
+    histfilesize: 20000,
+    ignoredups: true,
+    ignorespace: true,
+    timestamp: true
+  },
+  
+  // Active simulated todo checklist tasks
+  todoList: [
+    '[ ] Learn advanced bash scripting configurations',
+    '[ ] Customize my prompt theme in dotbashrc dashboard'
+  ]
 };
 
 // ==========================================================================
@@ -206,7 +237,7 @@ function parsePS1(ps1Str, config) {
   const pad = (n) => String(n).padStart(2, '0');
   const now = new Date();
   
-  const dateStr = now.toDateString().substring(0, 10); // e.g. "Sat Jun 20"
+  const dateStr = now.toDateString().substring(0, 10);
   
   const time24 = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
   
@@ -219,8 +250,7 @@ function parsePS1(ps1Str, config) {
   
   const time24Short = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
-  // Exit status indicator - bash users sometimes embed logic like `$(if [ $? -eq 0 ]; then echo green; else echo red;)`
-  // For standard rendering: \$ will show # for root, $ for normal.
+  // Exit status indicator
   const shellSymbol = config.isRoot ? '#' : '$';
 
   const segments = [];
@@ -233,8 +263,7 @@ function parsePS1(ps1Str, config) {
   let bg = null;
   let inlineStyles = {};
 
-  // Tokenizer pattern
-  // Matches: ANSI codes, escaped brackets, macros, and plain strings
+  // Tokenizer pattern matches: ANSI codes, escaped brackets, macros, and plain strings
   const tokenRegex = /(\\e\[[0-9;]*m|\\033\[[0-9;]*m|\\x1b\[[0-9;]*m|\\\[|\\\]|\\u|\\h|\\H|\\w|\\W|\\d|\\t|\\T|\\@|\\A|\\s|\\v|\\V|\\\$|\\n|\\r|\\\\|\\?\\$\\(__git_ps1\\)|[^\$\\\x1b\[\]]+|.)/g;
   const matches = ps1Str.match(tokenRegex) || [];
 
@@ -260,159 +289,212 @@ function parsePS1(ps1Str, config) {
             underline = true;
           } else if (code === 5) {
             blink = true;
-          } else if (code === 22) {
-            bold = false;
-          } else if (code === 24) {
-            underline = false;
-          } else if (code === 25) {
-            blink = false;
           } else if (code >= 30 && code <= 37) {
-            const colors = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'];
-            fg = colors[code - 30];
+            fg = (code - 30).toString();
+          } else if (code === 38) {
+            // Extended 256 or RGB color mode for foreground
+            if (codes[i + 1] === 5 && i + 2 < codes.length) {
+              const colorNum = codes[i + 2];
+              fg = `color256-${colorNum}`;
+              inlineStyles.color = get256RGB(colorNum);
+              i += 2;
+            } else if (codes[i + 1] === 2 && i + 4 < codes.length) {
+              const r = codes[i + 2];
+              const g = codes[i + 3];
+              const b = codes[i + 4];
+              fg = 'color-rgb';
+              inlineStyles.color = `rgb(${r},${g},${b})`;
+              i += 4;
+            }
           } else if (code === 39) {
             fg = null;
+            delete inlineStyles.color;
           } else if (code >= 40 && code <= 47) {
-            const colors = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'];
-            bg = colors[code - 40];
+            bg = (code - 40).toString();
+          } else if (code === 48) {
+            // Extended 256 or RGB color mode for background
+            if (codes[i + 1] === 5 && i + 2 < codes.length) {
+              const colorNum = codes[i + 2];
+              bg = `color256-${colorNum}`;
+              inlineStyles.backgroundColor = get256RGB(colorNum);
+              i += 2;
+            } else if (codes[i + 1] === 2 && i + 4 < codes.length) {
+              const r = codes[i + 2];
+              const g = codes[i + 3];
+              const b = codes[i + 4];
+              bg = 'color-rgb';
+              inlineStyles.backgroundColor = `rgb(${r},${g},${b})`;
+              i += 4;
+            }
           } else if (code === 49) {
             bg = null;
+            delete inlineStyles.backgroundColor;
           } else if (code >= 90 && code <= 97) {
-            const colors = ['bright-black', 'bright-red', 'bright-green', 'bright-yellow', 'bright-blue', 'bright-magenta', 'bright-cyan', 'bright-white'];
-            fg = colors[code - 90];
+            fg = `bright-${code - 90}`;
           } else if (code >= 100 && code <= 107) {
-            const colors = ['bright-black', 'bright-red', 'bright-green', 'bright-yellow', 'bright-blue', 'bright-magenta', 'bright-cyan', 'bright-white'];
-            bg = colors[code - 100];
-          } else if (code === 38) {
-            // 256 colors or RGB
-            if (codes[i+1] === 5 && codes[i+2] !== undefined) {
-              fg = `color256-${codes[i+2]}`;
-              inlineStyles.color = get256RGB(codes[i+2]);
-              i += 2;
-            } else if (codes[i+1] === 2 && codes[i+2] !== undefined && codes[i+3] !== undefined && codes[i+4] !== undefined) {
-              fg = `color-rgb`;
-              inlineStyles.color = `rgb(${codes[i+2]},${codes[i+3]},${codes[i+4]})`;
-              i += 4;
-            }
-          } else if (code === 48) {
-            if (codes[i+1] === 5 && codes[i+2] !== undefined) {
-              bg = `bg256-${codes[i+2]}`;
-              inlineStyles.backgroundColor = get256RGB(codes[i+2]);
-              i += 2;
-            } else if (codes[i+1] === 2 && codes[i+2] !== undefined && codes[i+3] !== undefined && codes[i+4] !== undefined) {
-              bg = `bg-rgb`;
-              inlineStyles.backgroundColor = `rgb(${codes[i+2]},${codes[i+3]},${codes[i+4]})`;
-              i += 4;
-            }
+            bg = `bright-${code - 100}`;
           }
         }
       }
     } else if (token === '\\[' || token === '\\]') {
-      // Skip non-printing delimiters
+      // Ignored non-printing character wrappers
       continue;
     } else {
-      let resolvedText = '';
+      let segmentText = '';
       let isSpecial = false;
-      let type = 'text';
+      let type = '';
 
-      if (token === '\\u') { resolvedText = username; isSpecial = true; type = 'username'; }
-      else if (token === '\\h') { resolvedText = shortHost; isSpecial = true; type = 'hostname'; }
-      else if (token === '\\H') { resolvedText = hostname; isSpecial = true; type = 'hostname-full'; }
-      else if (token === '\\w') { resolvedText = directory; isSpecial = true; type = 'directory'; }
-      else if (token === '\\W') { resolvedText = shortDir; isSpecial = true; type = 'directory-base'; }
-      else if (token === '\\d') { resolvedText = dateStr; isSpecial = true; type = 'date'; }
-      else if (token === '\\t') { resolvedText = time24; isSpecial = true; type = 'time-24'; }
-      else if (token === '\\T') { resolvedText = time12; isSpecial = true; type = 'time-12'; }
-      else if (token === '\\@') { resolvedText = timeAmpm; isSpecial = true; type = 'time-ampm'; }
-      else if (token === '\\A') { resolvedText = time24Short; isSpecial = true; type = 'time-24-short'; }
-      else if (token === '\\s') { resolvedText = 'bash'; isSpecial = true; type = 'shell'; }
-      else if (token === '\\v') { resolvedText = '5.2'; isSpecial = true; type = 'version'; }
-      else if (token === '\\V') { resolvedText = '5.2.15'; isSpecial = true; type = 'release'; }
-      else if (token === '\\$') { 
-        // Color fail symbol red if exits status failed
-        resolvedText = shellSymbol; 
-        isSpecial = true; 
-        type = 'symbol'; 
-      }
-      else if (token === '\\n') { resolvedText = '\n'; isSpecial = true; type = 'newline'; }
-      else if (token === '\\r') { resolvedText = ''; isSpecial = true; type = 'carriage-return'; }
-      else if (token === '\\\\') { resolvedText = '\\'; }
-      else if (token === '$(__git_ps1)' || token === '\\$(__git_ps1)') { resolvedText = gitBranchText; isSpecial = true; type = 'git-branch'; }
-      else {
-        resolvedText = token;
+      switch (token) {
+        case '\\u':
+          segmentText = username;
+          isSpecial = true;
+          type = 'username';
+          break;
+        case '\\h':
+          segmentText = shortHost;
+          isSpecial = true;
+          type = 'hostname';
+          break;
+        case '\\H':
+          segmentText = hostname;
+          isSpecial = true;
+          type = 'hostname-full';
+          break;
+        case '\\w':
+          segmentText = directory;
+          isSpecial = true;
+          type = 'directory';
+          break;
+        case '\\W':
+          segmentText = shortDir;
+          isSpecial = true;
+          type = 'directory-base';
+          break;
+        case '\\d':
+          segmentText = dateStr;
+          isSpecial = true;
+          type = 'date';
+          break;
+        case '\\t':
+          segmentText = time24;
+          isSpecial = true;
+          type = 'time-24';
+          break;
+        case '\\T':
+          segmentText = time12;
+          isSpecial = true;
+          type = 'time-12';
+          break;
+        case '\\@':
+          segmentText = timeAmpm;
+          isSpecial = true;
+          type = 'time-ampm';
+          break;
+        case '\\A':
+          segmentText = time24Short;
+          isSpecial = true;
+          type = 'time-24-short';
+          break;
+        case '\\s':
+          segmentText = 'bash';
+          isSpecial = true;
+          type = 'shell';
+          break;
+        case '\\v':
+          segmentText = '5.0';
+          isSpecial = true;
+          type = 'version';
+          break;
+        case '\\V':
+          segmentText = '5.0.17';
+          isSpecial = true;
+          type = 'release';
+          break;
+        case '\\$':
+          segmentText = shellSymbol;
+          isSpecial = true;
+          type = 'symbol';
+          break;
+        case '\\n':
+          segmentText = '\n';
+          isSpecial = true;
+          type = 'newline';
+          break;
+        case '\\r':
+          segmentText = '\r';
+          isSpecial = true;
+          type = 'carriage-return';
+          break;
+        case '\\\\':
+          segmentText = '\\';
+          break;
+        case '$(__git_ps1)':
+        case '\\$(__git_ps1)':
+          segmentText = gitBranchText;
+          isSpecial = true;
+          type = 'git-branch';
+          break;
+        default:
+          segmentText = token;
       }
 
-      if (resolvedText !== '') {
-        // Special custom logic: if exitStatusFailed is active and this token is a prompt symbol, apply a red color override
-        let finalFg = fg;
-        let finalStyles = { ...inlineStyles };
-        if (type === 'symbol' && config.exitStatusFailed) {
-          finalFg = 'red';
-          finalStyles.color = 'var(--term-red)';
-        }
-
-        segments.push({
-          text: resolvedText,
-          bold,
-          underline,
-          blink,
-          fg: finalFg,
-          bg,
-          inlineStyles: finalStyles,
-          rawToken: token,
-          isSpecial,
-          type
-        });
-      }
+      segments.push({
+        text: segmentText,
+        rawToken: token,
+        bold,
+        underline,
+        blink,
+        fg,
+        bg,
+        inlineStyles: { ...inlineStyles },
+        isSpecial,
+        type
+      });
     }
   }
 
   return segments;
 }
 
-// ==========================================================================
-// RENDERERS (XSS-FREE VIA textContent)
-// ==========================================================================
-function renderPS1ToElement(segments, element) {
-  element.replaceChildren(); // Safe clearance of existing items (no innerHTML)
+// Safe renderer that protects against XSS
+function renderPS1ToElement(segments, container) {
+  if (!container) return;
+  container.replaceChildren();
 
-  for (let seg of segments) {
+  segments.forEach(seg => {
     if (seg.text === '\n') {
-      element.appendChild(document.createElement('br'));
-      continue;
+      container.appendChild(document.createElement('br'));
+      return;
+    }
+    if (seg.text === '\r') {
+      return;
     }
 
     const span = document.createElement('span');
-    span.textContent = seg.text;
+    span.textContent = seg.text; // Safe text insertion prevents XSS
 
-    // Apply formatting classes
     if (seg.bold) span.classList.add('ansi-bold');
     if (seg.underline) span.classList.add('ansi-underline');
     if (seg.blink) span.classList.add('ansi-blink');
 
-    // Foreground style/class
+    // Mapped class colors
     if (seg.fg) {
       if (seg.fg.startsWith('color256-') || seg.fg === 'color-rgb') {
-        if (seg.inlineStyles && seg.inlineStyles.color) {
-          span.style.color = seg.inlineStyles.color;
-        }
+        span.style.color = seg.inlineStyles.color;
       } else {
         span.classList.add(`ansi-fg-${seg.fg}`);
       }
     }
-
-    // Background style/class
     if (seg.bg) {
-      if (seg.bg.startsWith('bg256-') || seg.bg === 'bg-rgb') {
-        if (seg.inlineStyles && seg.inlineStyles.backgroundColor) {
-          span.style.backgroundColor = seg.inlineStyles.backgroundColor;
-        }
+      if (seg.bg.startsWith('color256-') || seg.bg === 'color-rgb') {
+        span.style.backgroundColor = seg.inlineStyles.backgroundColor;
       } else {
         span.classList.add(`ansi-bg-${seg.bg}`);
       }
     }
 
-    element.appendChild(span);
-  }
+    container.appendChild(span);
+  });
 }
 
 // Update both Terminal Prompts, Exports, and Breakdowns
@@ -433,25 +515,158 @@ function updateAllPreviews() {
 }
 
 // ==========================================================================
-// EXPORTS WIDGET BUILDER
+// EXPORTS DYNAMIC ~/.BASHRC COMPILER
 // ==========================================================================
 function updateExportOutput() {
   const codeOutput = document.getElementById('code-export-output');
   if (!codeOutput) return;
 
-  let exportBlock = '';
+  let exportBlock = `# ==========================================================================\n`;
+  exportBlock += `# CUSTOM BASHRC CONFIGURATION\n`;
+  exportBlock += `# Generated dynamically via dotbashrc — https://deep5050.github.io/dotbashrc/\n`;
+  exportBlock += `# ==========================================================================\n\n`;
+
+  // 1. History Settings
+  exportBlock += `# --- Terminal History Rules ---\n`;
+  exportBlock += `export HISTSIZE=${state.options.histsize}\n`;
+  exportBlock += `export HISTFILESIZE=${state.options.histfilesize}\n`;
   
+  let histcontrol = [];
+  if (state.options.ignoredups) histcontrol.push('ignoredups');
+  if (state.options.ignorespace) histcontrol.push('ignorespace');
+  if (histcontrol.length > 0) {
+    exportBlock += `export HISTCONTROL=${histcontrol.join(':')}\n`;
+  }
+  if (state.options.timestamp) {
+    exportBlock += `export HISTTIMEFORMAT="%Y-%m-%d %H:%M:%S "\n`;
+  }
+  exportBlock += `\n`;
+
+  // 2. Shell Toggles (shopt)
+  exportBlock += `# --- Shell Options (shopt) ---\n`;
+  if (state.options.autocd) exportBlock += `shopt -s autocd 2>/dev/null\n`;
+  if (state.options.cdspell) exportBlock += `shopt -s cdspell 2>/dev/null\n`;
+  if (state.options.globstar) exportBlock += `shopt -s globstar 2>/dev/null\n`;
+  exportBlock += `\n`;
+
+  // 3. Git prompt helper
   if (state.config.gitEnabled) {
-    exportBlock += `# --- Git Prompt Integration ---\n`;
-    exportBlock += `# Make sure git-sh-prompt is sourced in your system. For Ubuntu/Debian:\n`;
-    exportBlock += `# if [ -f /usr/lib/git-core/git-sh-prompt ]; then\n`;
-    exportBlock += `#   . /usr/lib/git-core/git-sh-prompt\n`;
-    exportBlock += `# fi\n\n`;
+    exportBlock += `# --- Git Prompt Integration Helper ---\n`;
+    exportBlock += `# Source git-sh-prompt to automatically extract active repository branches.\n`;
+    exportBlock += `if [ -f /usr/lib/git-core/git-sh-prompt ]; then\n`;
+    exportBlock += `  . /usr/lib/git-core/git-sh-prompt\n`;
+    exportBlock += `elif [ -f /etc/bash_completion.d/git-prompt ]; then\n`;
+    exportBlock += `  . /etc/bash_completion.d/git-prompt\n`;
+    exportBlock += `fi\n\n`;
+  }
+
+  // 4. Prompt configuration (PS1)
+  exportBlock += `# --- Terminal Prompt (PS1) ---\n`;
+  exportBlock += `export PS1="${state.ps1}"\n\n`;
+
+  // 5. Aliases
+  exportBlock += `# --- Command Aliases ---\n`;
+  
+  if (state.aliases.git) {
+    exportBlock += `# Git shortcuts\n`;
+    exportBlock += `alias g='git'\n`;
+    exportBlock += `alias gs='git status'\n`;
+    exportBlock += `alias gp='git push'\n`;
+    exportBlock += `alias gd='git diff'\n`;
+    exportBlock += `alias gcm='git commit -m'\n`;
   }
   
-  exportBlock += `export PS1="${state.ps1}"`;
+  if (state.aliases.nav) {
+    if (!exportBlock.endsWith('\n\n')) exportBlock += `\n`;
+    exportBlock += `# Directory navigation\n`;
+    exportBlock += `alias ..='cd ..'\n`;
+    exportBlock += `alias ...='cd ../..'\n`;
+    exportBlock += `alias ll='ls -laF --color=auto'\n`;
+    exportBlock += `alias la='ls -A --color=auto'\n`;
+  }
   
-  codeOutput.textContent = exportBlock; // Safely set text content
+  if (state.aliases.safe) {
+    if (!exportBlock.endsWith('\n\n')) exportBlock += `\n`;
+    exportBlock += `# Interactive safeguards\n`;
+    exportBlock += `alias rm='rm -i'\n`;
+    exportBlock += `alias cp='cp -i'\n`;
+    exportBlock += `alias mv='mv -i'\n`;
+  }
+
+  if (state.aliases.custom.length > 0) {
+    if (!exportBlock.endsWith('\n\n')) exportBlock += `\n`;
+    exportBlock += `# User custom aliases\n`;
+    state.aliases.custom.forEach(item => {
+      const escapedValue = item.value.replace(/'/g, "'\\''");
+      exportBlock += `alias ${item.name}='${escapedValue}'\n`;
+    });
+  }
+  exportBlock += `\n`;
+
+  // 6. Functions
+  if (state.functions.mkcd) {
+    exportBlock += `# Create directory and navigate into it\n`;
+    exportBlock += `function mkcd() {\n`;
+    exportBlock += `  mkdir -p "$1" && cd "$1"\n`;
+    exportBlock += `}\n\n`;
+  }
+
+  if (state.functions.extract) {
+    exportBlock += `# Smart universal archive extractor\n`;
+    exportBlock += `function extract() {\n`;
+    exportBlock += `  if [ -f "$1" ] ; then\n`;
+    exportBlock += `    case "$1" in\n`;
+    exportBlock += `      *.tar.bz2)   tar xjf "$1"     ;;\n`;
+    exportBlock += `      *.tar.gz)    tar xzf "$1"     ;;\n`;
+    exportBlock += `      *.bz2)       bunzip2 "$1"     ;;\n`;
+    exportBlock += `      *.rar)       unrar x "$1"     ;;\n`;
+    exportBlock += `      *.gz)        gunzip "$1"      ;;\n`;
+    exportBlock += `      *.tar)       tar xf "$1"      ;;\n`;
+    exportBlock += `      *.tbz2)      tar xjf "$1"     ;;\n`;
+    exportBlock += `      *.tgz)       tar xzf "$1"     ;;\n`;
+    exportBlock += `      *.zip)       unzip "$1"       ;;\n`;
+    exportBlock += `      *.Z)         uncompress "$1"  ;;\n`;
+    exportBlock += `      *.7z)        7z x "$1"        ;;\n`;
+    exportBlock += `      *)           echo "'$1' cannot be extracted via extract()" ;;\n`;
+    exportBlock += `    esac\n`;
+    exportBlock += `  else\n`;
+    exportBlock += `    echo "'$1' is not a valid file"\n`;
+    exportBlock += `  fi\n`;
+    exportBlock += `}\n\n`;
+  }
+
+  if (state.functions.weather) {
+    exportBlock += `# Fetch command-line weather forecast summary\n`;
+    exportBlock += `function weather() {\n`;
+    exportBlock += `  curl -s "https://wttr.in/\${1:-London}?1m" || echo "Failed to fetch weather data"\n`;
+    exportBlock += `}\n\n`;
+  }
+
+  if (state.functions.todo) {
+    exportBlock += `# Simple file-based todo manager\n`;
+    exportBlock += `function todo() {\n`;
+    exportBlock += `  local TODO_FILE="$HOME/.todo.txt"\n`;
+    exportBlock += `  if [ "$1" = "add" ]; then\n`;
+    exportBlock += `    shift\n`;
+    exportBlock += `    echo "[ ] $*" >> "$TODO_FILE"\n`;
+    exportBlock += `    echo "Task added."\n`;
+    exportBlock += `  elif [ "$1" = "done" ]; then\n`;
+    exportBlock += `    sed -i "\${2}s/\\[ \\]/\\[x\\]/" "$TODO_FILE"\n`;
+    exportBlock += `    echo "Task marked as done."\n`;
+    exportBlock += `  elif [ "$1" = "clear" ]; then\n`;
+    exportBlock += `    > "$TODO_FILE"\n`;
+    exportBlock += `    echo "Todo list cleared."\n`;
+    exportBlock += `  else\n`;
+    exportBlock += `    if [ -f "$TODO_FILE" ]; then\n`;
+    exportBlock += `      nl -w2 -s'. ' "$TODO_FILE"\n`;
+    exportBlock += `    else\n`;
+    exportBlock += `      echo "No tasks. Run 'todo add <task>' to get started!"\n`;
+    exportBlock += `    fi\n`;
+    exportBlock += `  fi\n`;
+    exportBlock += `}\n\n`;
+  }
+
+  codeOutput.textContent = exportBlock.trim() + '\n';
 }
 
 // ==========================================================================
@@ -460,22 +675,17 @@ function updateExportOutput() {
 function updateSyntaxBreakdown(segments) {
   const breakdownContainer = document.getElementById('ps1-breakdown');
   if (!breakdownContainer) return;
-
   breakdownContainer.replaceChildren();
 
-  // Group text segments that represent literals together for a cleaner breakdown,
-  // but keep macros and formatting changes separate.
-  segments.forEach((seg, idx) => {
+  segments.forEach(seg => {
     const tokenDiv = document.createElement('div');
     tokenDiv.className = 'inspector-token';
     
-    // Add raw representation
     const tokenTag = document.createElement('span');
     tokenTag.className = 'token-tag';
     tokenTag.textContent = seg.rawToken;
     tokenDiv.appendChild(tokenTag);
 
-    // Add description text
     const tokenDesc = document.createElement('span');
     tokenDesc.className = 'token-desc';
     
@@ -509,7 +719,6 @@ function updateSyntaxBreakdown(segments) {
     tokenDesc.textContent = `→ ${description}`;
     tokenDiv.appendChild(tokenDesc);
 
-    // Apply color styling inside inspector tooltip if available
     if (seg.fg) {
       if (seg.fg.startsWith('color256-') || seg.fg === 'color-rgb') {
         tokenTag.style.color = seg.inlineStyles.color;
@@ -518,45 +727,856 @@ function updateSyntaxBreakdown(segments) {
       }
     }
     if (seg.bg) {
-      if (seg.bg.startsWith('bg256-') || seg.bg === 'bg-rgb') {
+      if (seg.bg.startsWith('color256-') || seg.bg === 'color-rgb') {
         tokenTag.style.backgroundColor = seg.inlineStyles.backgroundColor;
       } else {
         tokenTag.classList.add(`ansi-bg-${seg.bg}`);
       }
     }
-    
+
     breakdownContainer.appendChild(tokenDiv);
   });
+}
 
-  if (segments.length === 0) {
-    const emptySpan = document.createElement('span');
-    emptySpan.className = 'text-muted';
-    emptySpan.textContent = 'Write a prompt configuration above to see the breakdown.';
-    breakdownContainer.appendChild(emptySpan);
+// ==========================================================================
+// CUSTOM ALIAS BUILDER VIEW RENDERER
+// ==========================================================================
+function renderCustomAliasesList() {
+  const container = document.getElementById('custom-aliases-list');
+  if (!container) return;
+  
+  container.replaceChildren();
+  
+  if (state.aliases.custom.length === 0) {
+    const emptyMsg = document.createElement('div');
+    emptyMsg.className = 'text-muted';
+    emptyMsg.style.fontSize = '12px';
+    emptyMsg.textContent = 'No custom aliases configured yet.';
+    container.appendChild(emptyMsg);
+    return;
+  }
+  
+  state.aliases.custom.forEach((item, idx) => {
+    const itemDiv = document.createElement('div');
+    itemDiv.className = 'alias-item';
+    
+    const textSpan = document.createElement('span');
+    textSpan.className = 'alias-item-text';
+    textSpan.textContent = `alias ${item.name}='${item.value}'`;
+    itemDiv.appendChild(textSpan);
+    
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'alias-delete-btn';
+    deleteBtn.textContent = '×';
+    deleteBtn.title = 'Remove alias';
+    deleteBtn.addEventListener('click', () => {
+      state.aliases.custom.splice(idx, 1);
+      renderCustomAliasesList();
+      updateExportOutput();
+    });
+    itemDiv.appendChild(deleteBtn);
+    
+    container.appendChild(itemDiv);
+  });
+}
+
+// Safe error helper to prevent alert dialogue blocking
+function showAliasError(msg) {
+  let errSpan = document.getElementById('alias-error');
+  if (!errSpan) {
+    errSpan = document.createElement('span');
+    errSpan.id = 'alias-error';
+    errSpan.style.color = '#ff5f56';
+    errSpan.style.fontSize = '11px';
+    errSpan.style.marginTop = '4px';
+    errSpan.style.display = 'none';
+    const form = document.querySelector('.custom-alias-form');
+    if (form) form.appendChild(errSpan);
+  }
+  
+  if (msg) {
+    errSpan.textContent = msg;
+    errSpan.style.display = 'block';
+  } else {
+    errSpan.style.display = 'none';
   }
 }
 
 // ==========================================================================
-// PREDEFINED TEMPLATES CATALOG RENDERER
+// INTERACTIVE CONSOLE SYSTEM (TERMINAL PREVIEW)
 // ==========================================================================
+function getMockFileList(isLong) {
+  const currentDir = state.config.directory;
+  let files = ['LICENSE', 'README.md', 'app.js', 'index.html', 'style.css'];
+  
+  if (currentDir === '~') {
+    files = ['projects'];
+  } else if (currentDir === '~/projects') {
+    files = ['dotbashrc', 'another-app'];
+  } else if (currentDir.startsWith('~/projects/dotbashrc/')) {
+    files = ['src', 'assets', 'package.json'];
+  }
+  
+  if (isLong) {
+    const pre = document.createElement('pre');
+    pre.style.fontFamily = 'var(--font-mono)';
+    pre.style.fontSize = '13px';
+    pre.style.lineHeight = '1.4';
+    
+    let totalSize = files.length * 4;
+    
+    // Header total line
+    const totalDiv = document.createElement('div');
+    totalDiv.textContent = `total ${totalSize}`;
+    pre.appendChild(totalDiv);
+    
+    files.forEach(f => {
+      const isDir = (f === 'projects' || f === 'dotbashrc' || f === 'another-app' || f === 'src' || f === 'assets');
+      const perm = isDir ? 'drwxr-xr-x' : '-rw-r--r--';
+      const links = isDir ? '3' : '1';
+      const size = isDir ? '4096' : (f === 'app.js' ? '40354' : (f === 'style.css' ? '28217' : '13251'));
+      const colorClass = isDir ? 'color: var(--term-blue); font-weight: bold;' : (f.endsWith('.js') ? 'color: var(--term-green); font-weight: bold;' : 'color: var(--term-fg);');
+      
+      const spanLine = document.createElement('div');
+      spanLine.style.display = 'flex';
+      spanLine.style.gap = '14px';
+      
+      const metaSpan = document.createElement('span');
+      metaSpan.style.color = 'var(--term-dim)';
+      metaSpan.textContent = `${perm}  ${links} guest  linux  ${String(size).padStart(5)} Jun 20 01:10`;
+      
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = f;
+      nameSpan.setAttribute('style', colorClass);
+      
+      spanLine.appendChild(metaSpan);
+      spanLine.appendChild(nameSpan);
+      pre.appendChild(spanLine);
+    });
+    return pre;
+  } else {
+    const div = document.createElement('div');
+    div.style.display = 'flex';
+    div.style.flexWrap = 'wrap';
+    div.style.gap = '16px';
+    div.style.fontFamily = 'var(--font-mono)';
+    
+    files.forEach(f => {
+      const span = document.createElement('span');
+      span.textContent = f;
+      const isDir = (f === 'projects' || f === 'dotbashrc' || f === 'another-app' || f === 'src' || f === 'assets');
+      if (isDir) {
+        span.style.color = 'var(--term-blue)';
+        span.style.fontWeight = 'bold';
+      } else if (f.endsWith('.js')) {
+        span.style.color = 'var(--term-green)';
+        span.style.fontWeight = 'bold';
+      } else {
+        span.style.color = 'var(--term-fg)';
+      }
+      div.appendChild(span);
+    });
+    return div;
+  }
+}
+
+function getMockWeather() {
+  const pre = document.createElement('pre');
+  pre.style.color = 'var(--term-yellow)';
+  pre.style.fontFamily = 'var(--font-mono)';
+  pre.style.lineHeight = '1.3';
+  pre.textContent = 
+`Weather report: ${state.config.hostname} (Simulated Location)
+
+      \\   /      
+       .-.       Sunny & Warm
+    ― (   ) ―    Temp: 26°C / 79°F
+       \`-\`       Wind: NNE at 8 mph
+      /   \\      Humidity: 45%
+                 UV Index: 6 (High)
+                 
+Forecast: Clear skies with cooling terminal breeze tonight.`;
+  return pre;
+}
+
+function getMockTodo(args) {
+  const sub = args[0] ? args[0].toLowerCase() : '';
+  const taskText = args.slice(1).join(' ');
+  const output = document.createElement('div');
+  output.style.fontFamily = 'var(--font-mono)';
+  
+  if (sub === 'add') {
+    if (!taskText) {
+      output.style.color = 'var(--term-red)';
+      output.textContent = 'Usage: todo add <task description>';
+    } else {
+      state.todoList.push(`[ ] ${taskText}`);
+      output.textContent = `Task added: "${taskText}"`;
+    }
+  } else if (sub === 'done') {
+    const idx = parseInt(args[1], 10) - 1;
+    if (isNaN(idx) || idx < 0 || idx >= state.todoList.length) {
+      output.style.color = 'var(--term-red)';
+      output.textContent = 'Usage: todo done <task_number>';
+    } else {
+      state.todoList[idx] = state.todoList[idx].replace('[ ]', '[x]');
+      output.textContent = `Task ${idx + 1} marked as completed!`;
+    }
+  } else if (sub === 'clear') {
+    state.todoList = [];
+    output.textContent = 'Todo checklist cleared successfully.';
+  } else {
+    if (state.todoList.length === 0) {
+      output.textContent = 'No active tasks found. Type "todo add <task>" to write a checklist item!';
+    } else {
+      const pre = document.createElement('pre');
+      pre.style.lineHeight = '1.4';
+      let content = 'My Todo Checklist:\n';
+      state.todoList.forEach((t, i) => {
+        content += `  ${i + 1}. ${t}\n`;
+      });
+      pre.textContent = content;
+      output.appendChild(pre);
+    }
+  }
+  return output;
+}
+
+function handleCdCommand(targetDir) {
+  let currentDir = state.config.directory;
+  if (!targetDir || targetDir === '~') {
+    state.config.directory = '~';
+  } else if (targetDir === '..') {
+    if (currentDir === '~/projects/dotbashrc') {
+      state.config.directory = '~/projects';
+    } else if (currentDir === '~/projects') {
+      state.config.directory = '~';
+    } else if (currentDir.startsWith('~/projects/dotbashrc/')) {
+      state.config.directory = '~/projects/dotbashrc';
+    }
+  } else if (targetDir === '../..') {
+    state.config.directory = '~';
+  } else {
+    let matchedDir = targetDir;
+    if (state.options.cdspell) {
+      if (targetDir === 'prjects') matchedDir = 'projects';
+      if (targetDir === 'dotbashr') matchedDir = 'dotbashrc';
+    }
+    
+    if (currentDir === '~' && matchedDir === 'projects') {
+      state.config.directory = '~/projects';
+    } else if (currentDir === '~/projects' && matchedDir === 'dotbashrc') {
+      state.config.directory = '~/projects/dotbashrc';
+    } else {
+      // Allow dynamic folders
+      state.config.directory = currentDir + '/' + targetDir;
+    }
+    
+    if (state.options.cdspell && matchedDir !== targetDir) {
+      return `${matchedDir}/ (spelling corrected from ${targetDir}/)`;
+    }
+  }
+  return '';
+}
+
+function syncStateToDOMInputs() {
+  const dirInput = document.getElementById('input-directory');
+  if (dirInput) {
+    dirInput.value = state.config.directory;
+  }
+  const titleBar = document.getElementById('terminal-window-title');
+  if (titleBar) {
+    titleBar.textContent = `bash — ${state.config.username}@${state.config.hostname}: ${state.config.directory}`;
+  }
+}
+
+function setupTerminalSimulator() {
+  const terminalInput = document.getElementById('terminal-input');
+  const terminalInputDisplay = document.getElementById('terminal-input-display');
+  const terminalScreen = document.getElementById('terminal-screen');
+  const terminalHistory = document.getElementById('terminal-history');
+
+  if (!terminalInput || !terminalScreen || !terminalHistory) return;
+
+  // Sync cursor inline position on input typing
+  terminalInput.addEventListener('input', () => {
+    if (terminalInputDisplay) {
+      terminalInputDisplay.textContent = terminalInput.value;
+    }
+  });
+
+  terminalInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const commandLine = terminalInput.value.trim();
+      terminalInput.value = ''; // Reset input immediately
+      if (terminalInputDisplay) {
+        terminalInputDisplay.textContent = ''; // Reset display immediately
+      }
+      
+      // 1. Snapshot prompt and command
+      const promptSnapshotDiv = document.createElement('div');
+      promptSnapshotDiv.className = 'history-line';
+      
+      const promptSpan = document.createElement('span');
+      promptSpan.className = 'prompt-container';
+      const promptSegs = parsePS1(state.ps1, state.config);
+      renderPS1ToElement(promptSegs, promptSpan);
+      promptSnapshotDiv.appendChild(promptSpan);
+
+      const commandSpan = document.createElement('span');
+      commandSpan.style.marginLeft = '8px';
+      commandSpan.textContent = commandLine;
+      promptSnapshotDiv.appendChild(commandSpan);
+
+      terminalHistory.appendChild(promptSnapshotDiv);
+
+      // 2. Process command outputs
+      if (commandLine) {
+        const parts = commandLine.split(' ');
+        let cmd = parts[0].toLowerCase();
+        let args = parts.slice(1);
+        
+        // --- Alias Evaluation Logic ---
+        const gitAliases = {
+          'g': 'git',
+          'gs': 'git status',
+          'gp': 'git push',
+          'gd': 'git diff',
+          'gcm': 'git commit -m'
+        };
+        const navAliases = {
+          '..': 'cd ..',
+          '...': 'cd ../..',
+          'll': 'ls -la',
+          'la': 'ls -A'
+        };
+        const safeAliases = {
+          'rm': 'rm -i',
+          'cp': 'cp -i',
+          'mv': 'mv -i'
+        };
+        
+        let resolvedCommand = commandLine;
+        let aliasTriggered = false;
+        
+        if (state.aliases.git && gitAliases[cmd]) {
+          resolvedCommand = gitAliases[cmd] + ' ' + args.join(' ');
+          aliasTriggered = true;
+        } else if (state.aliases.nav && navAliases[cmd]) {
+          resolvedCommand = navAliases[cmd] + ' ' + args.join(' ');
+          aliasTriggered = true;
+        } else if (state.aliases.safe && safeAliases[cmd]) {
+          resolvedCommand = safeAliases[cmd] + ' ' + args.join(' ');
+          aliasTriggered = true;
+        } else {
+          const foundCustom = state.aliases.custom.find(item => item.name.toLowerCase() === cmd);
+          if (foundCustom) {
+            resolvedCommand = foundCustom.value + ' ' + args.join(' ');
+            aliasTriggered = true;
+          }
+        }
+        
+        // Re-evaluate parts if alias was triggered
+        if (aliasTriggered) {
+          const reParts = resolvedCommand.trim().split(' ');
+          cmd = reParts[0].toLowerCase();
+          args = reParts.slice(1);
+        }
+        
+        // Check for autocd (typing a directory name directly)
+        let isAutoCd = false;
+        if (state.options.autocd && cmd !== 'cd' && cmd !== 'ls' && cmd !== 'help' && cmd !== 'clear') {
+          const currentDir = state.config.directory;
+          if ((currentDir === '~' && cmd === 'projects') || (currentDir === '~/projects' && cmd === 'dotbashrc')) {
+            isAutoCd = true;
+            args = [cmd];
+            cmd = 'cd';
+          }
+        }
+
+        const outputDiv = document.createElement('div');
+        outputDiv.className = 'history-line';
+
+        switch (cmd) {
+          case 'help':
+            const helpPre = document.createElement('pre');
+            helpPre.textContent = 
+`Available simulated commands:
+  help          Display this menu
+  ls            List directory files (supports alias ll, la)
+  cd <dir>      Change simulated directory path (supports autocd, cdspell, ..)
+  mkcd <dir>    Make directory & cd in one command (if shell function toggle is active)
+  todo          Checklist tool (if active): todo [add <task>|done <num>|clear]
+  weather       Retreive simulated weather summary (if active)
+  whoami        Display current terminal user
+  date          Display current date/time info
+  git status    Show git branch information (if git is active)
+  cowsay <msg>  Simulate the cowsay command
+  clear         Reset terminal logs
+  theme <name>  Change terminal color palette (dracula, nord, etc)`;
+            outputDiv.appendChild(helpPre);
+            terminalHistory.appendChild(outputDiv);
+            break;
+            
+          case 'ls':
+            const isLong = args.includes('-la') || args.includes('-l') || args.includes('-a');
+            const fileList = getMockFileList(isLong);
+            outputDiv.appendChild(fileList);
+            terminalHistory.appendChild(outputDiv);
+            break;
+            
+          case 'cd':
+            if (isAutoCd) {
+              const cdMsg = document.createElement('div');
+              cdMsg.style.color = 'var(--term-dim)';
+              cdMsg.textContent = `autocd: cd ${args[0]}`;
+              terminalHistory.appendChild(cdMsg);
+            }
+            
+            const spellMsg = handleCdCommand(args[0]);
+            if (spellMsg) {
+              const correctionDiv = document.createElement('div');
+              correctionDiv.style.color = 'var(--term-dim)';
+              correctionDiv.textContent = spellMsg;
+              terminalHistory.appendChild(correctionDiv);
+            }
+            syncStateToDOMInputs();
+            updateAllPreviews();
+            break;
+            
+          case 'mkcd':
+            if (state.functions.mkcd) {
+              const folder = args[0] || 'new-folder';
+              const cdOutput = handleCdCommand(folder);
+              const mkcdDiv = document.createElement('div');
+              mkcdDiv.textContent = `mkdir: created directory '${folder}'\ncd: changing to '${state.config.directory}'`;
+              outputDiv.appendChild(mkcdDiv);
+              terminalHistory.appendChild(outputDiv);
+              syncStateToDOMInputs();
+              updateAllPreviews();
+            } else {
+              outputDiv.style.color = 'var(--term-red)';
+              outputDiv.textContent = `bash: mkcd: command not found (activate shell function on the left dashboard)`;
+              terminalHistory.appendChild(outputDiv);
+            }
+            break;
+            
+          case 'weather':
+            if (state.functions.weather) {
+              const weatherBanner = getMockWeather();
+              outputDiv.appendChild(weatherBanner);
+            } else {
+              outputDiv.style.color = 'var(--term-red)';
+              outputDiv.textContent = `bash: weather: command not found (activate shell function on the left dashboard)`;
+            }
+            terminalHistory.appendChild(outputDiv);
+            break;
+            
+          case 'todo':
+            if (state.functions.todo) {
+              const todoView = getMockTodo(args);
+              outputDiv.appendChild(todoView);
+            } else {
+              outputDiv.style.color = 'var(--term-red)';
+              outputDiv.textContent = `bash: todo: command not found (activate shell function on the left dashboard)`;
+            }
+            terminalHistory.appendChild(outputDiv);
+            break;
+            
+          case 'whoami':
+            outputDiv.textContent = state.config.username;
+            terminalHistory.appendChild(outputDiv);
+            break;
+            
+          case 'date':
+            outputDiv.textContent = new Date().toString();
+            terminalHistory.appendChild(outputDiv);
+            break;
+            
+          case 'git':
+            if (args[0] === 'status') {
+              const gitPre = document.createElement('pre');
+              if (state.config.gitEnabled) {
+                gitPre.textContent = 
+`On branch ${state.config.gitBranch}
+Your branch is up to date with 'origin/${state.config.gitBranch}'.
+
+nothing to commit, working tree clean`;
+              } else {
+                gitPre.style.color = 'var(--term-red)';
+                gitPre.textContent = `fatal: not a git repository (or any of the parent directories): .git`;
+              }
+              outputDiv.appendChild(gitPre);
+            } else {
+              outputDiv.textContent = `git: simulated command only supports "git status"`;
+            }
+            terminalHistory.appendChild(outputDiv);
+            break;
+            
+          case 'cowsay':
+            const cowsayMsg = args.join(' ') || 'Mooo!';
+            const cowPre = document.createElement('pre');
+            const borderLen = cowsayMsg.length + 2;
+            const topBorder = ` _` + `_`.repeat(borderLen) + `_`;
+            const bottomBorder = ` -` + `-`.repeat(borderLen) + `-`;
+            
+            cowPre.textContent = 
+`${topBorder}
+< ${cowsayMsg} >
+${bottomBorder}
+        \\   ^__^
+         \\  (oo)\\_______
+            (__)\\       )\\/\\
+                ||----w |
+                ||     ||`;
+            outputDiv.appendChild(cowPre);
+            terminalHistory.appendChild(outputDiv);
+            break;
+            
+          case 'clear':
+            terminalHistory.replaceChildren();
+            break;
+            
+          case 'theme':
+            const reqTheme = args[0] ? args[0].toLowerCase() : '';
+            const validThemes = ['dracula', 'onedark', 'nord', 'retro-green', 'solarized-light', 'github-light'];
+            if (validThemes.includes(reqTheme)) {
+              state.terminalTheme = reqTheme;
+              const termWin = document.getElementById('terminal-window');
+              const selectTheme = document.getElementById('select-terminal-theme');
+              if (termWin) termWin.setAttribute('data-theme', reqTheme);
+              if (selectTheme) selectTheme.value = reqTheme;
+              outputDiv.textContent = `Terminal theme switched to "${reqTheme}".`;
+            } else {
+              outputDiv.style.color = 'var(--term-red)';
+              outputDiv.textContent = `Theme "${reqTheme}" not found. Try: ${validThemes.join(', ')}`;
+            }
+            terminalHistory.appendChild(outputDiv);
+            break;
+            
+          default:
+            outputDiv.style.color = 'var(--term-red)';
+            outputDiv.textContent = `bash: command not found: ${cmd}`;
+            terminalHistory.appendChild(outputDiv);
+        }
+      }
+
+      // Auto scroll terminal screen to bottom
+      terminalScreen.scrollTop = terminalScreen.scrollHeight;
+    }
+  });
+
+  terminalScreen.addEventListener('click', () => {
+    terminalInput.focus();
+  });
+
+  const btnClear = document.getElementById('btn-clear-terminal');
+  if (btnClear) {
+    btnClear.addEventListener('click', (e) => {
+      e.stopPropagation();
+      terminalHistory.replaceChildren();
+      terminalInput.focus();
+    });
+  }
+}
+
+// ==========================================================================
+// CONFIGURATION CONTROLS & EVENT BINDINGS
+// ==========================================================================
+function setupConfigControls() {
+  // Variables setup inputs
+  const inputs = {
+    username: document.getElementById('input-username'),
+    hostname: document.getElementById('input-hostname'),
+    directory: document.getElementById('input-directory'),
+    gitBranch: document.getElementById('input-git-branch'),
+    gitEnabled: document.getElementById('toggle-git'),
+    isRoot: document.getElementById('toggle-root'),
+    exitStatusFailed: document.getElementById('toggle-exit-code'),
+    ps1Textarea: document.getElementById('input-ps1'),
+    
+    // New left dashboard bindings
+    aliasGit: document.getElementById('alias-group-git'),
+    aliasNav: document.getElementById('alias-group-nav'),
+    aliasSafe: document.getElementById('alias-group-safe'),
+    fnMkcd: document.getElementById('fn-toggle-mkcd'),
+    fnExtract: document.getElementById('fn-toggle-extract'),
+    fnWeather: document.getElementById('fn-toggle-weather'),
+    fnTodo: document.getElementById('fn-toggle-todo'),
+    optAutocd: document.getElementById('opt-shopt-autocd'),
+    optCdspell: document.getElementById('opt-shopt-cdspell'),
+    optGlobstar: document.getElementById('opt-shopt-globstar'),
+    histsize: document.getElementById('input-histsize'),
+    histfilesize: document.getElementById('input-histfilesize'),
+    histIgnoredups: document.getElementById('opt-hist-ignoredups'),
+    histIgnorespace: document.getElementById('opt-hist-ignorespace'),
+    histTimestamp: document.getElementById('opt-hist-timestamp')
+  };
+
+  const updateStateConfig = () => {
+    if (inputs.username) state.config.username = inputs.username.value || 'guest';
+    if (inputs.hostname) {
+      state.config.hostname = inputs.hostname.value || 'linux';
+      const titleBar = document.getElementById('terminal-window-title');
+      if (titleBar) {
+        titleBar.textContent = `bash — ${state.config.username}@${state.config.hostname}: ${state.config.directory}`;
+      }
+    }
+    if (inputs.directory) {
+      state.config.directory = inputs.directory.value || '~';
+      const titleBar = document.getElementById('terminal-window-title');
+      if (titleBar) {
+        titleBar.textContent = `bash — ${state.config.username}@${state.config.hostname}: ${state.config.directory}`;
+      }
+    }
+    if (inputs.gitBranch) state.config.gitBranch = inputs.gitBranch.value || 'main';
+    if (inputs.gitEnabled) state.config.gitEnabled = inputs.gitEnabled.checked;
+    if (inputs.isRoot) state.config.isRoot = inputs.isRoot.checked;
+    if (inputs.exitStatusFailed) state.config.exitStatusFailed = inputs.exitStatusFailed.checked;
+
+    // Aliases checkboxes
+    if (inputs.aliasGit) state.aliases.git = inputs.aliasGit.checked;
+    if (inputs.aliasNav) state.aliases.nav = inputs.aliasNav.checked;
+    if (inputs.aliasSafe) state.aliases.safe = inputs.aliasSafe.checked;
+
+    // Functions checkboxes
+    if (inputs.fnMkcd) state.functions.mkcd = inputs.fnMkcd.checked;
+    if (inputs.fnExtract) state.functions.extract = inputs.fnExtract.checked;
+    if (inputs.fnWeather) state.functions.weather = inputs.fnWeather.checked;
+    if (inputs.fnTodo) state.functions.todo = inputs.fnTodo.checked;
+
+    // Options shopt checkboxes
+    if (inputs.optAutocd) state.options.autocd = inputs.optAutocd.checked;
+    if (inputs.optCdspell) state.options.cdspell = inputs.optCdspell.checked;
+    if (inputs.optGlobstar) state.options.globstar = inputs.optGlobstar.checked;
+
+    // History rules
+    if (inputs.histsize) state.options.histsize = parseInt(inputs.histsize.value, 10) || 10000;
+    if (inputs.histfilesize) state.options.histfilesize = parseInt(inputs.histfilesize.value, 10) || 20000;
+    if (inputs.histIgnoredups) state.options.ignoredups = inputs.histIgnoredups.checked;
+    if (inputs.histIgnorespace) state.options.ignorespace = inputs.histIgnorespace.checked;
+    if (inputs.histTimestamp) state.options.timestamp = inputs.histTimestamp.checked;
+
+    updateAllPreviews();
+    renderTemplatesCatalog();
+  };
+
+  Object.values(inputs).forEach(inputEl => {
+    if (!inputEl) return;
+    const eventType = (inputEl.type === 'checkbox' || inputEl.tagName === 'SELECT') ? 'change' : 'input';
+    inputEl.addEventListener(eventType, updateStateConfig);
+  });
+
+  if (inputs.ps1Textarea) {
+    inputs.ps1Textarea.addEventListener('input', () => {
+      state.ps1 = inputs.ps1Textarea.value;
+      updateAllPreviews();
+    });
+  }
+
+  // Insert buttons in PS1 Editor
+  const insertButtons = document.querySelectorAll('.btn-insert');
+  insertButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const valToInsert = btn.getAttribute('data-value');
+      if (inputs.ps1Textarea && valToInsert) {
+        const textarea = inputs.ps1Textarea;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        
+        textarea.value = textarea.value.substring(0, start) + valToInsert + textarea.value.substring(end);
+        textarea.focus();
+        
+        textarea.selectionStart = textarea.selectionEnd = start + valToInsert.length;
+        
+        state.ps1 = textarea.value;
+        updateAllPreviews();
+      }
+    });
+  });
+
+  // Search templates input
+  const searchInput = document.getElementById('search-templates');
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      state.searchQuery = searchInput.value;
+      renderTemplatesCatalog();
+    });
+  }
+
+  // Categories filter click handlers
+  const filterButtons = document.querySelectorAll('#category-filters .filter-btn');
+  filterButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      filterButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.activeCategory = btn.getAttribute('data-category');
+      renderTemplatesCatalog();
+    });
+  });
+
+  // Clipboard copy exports handler
+  const copyExportBtn = document.getElementById('btn-copy-export');
+  if (copyExportBtn) {
+    copyExportBtn.addEventListener('click', () => {
+      const codeOutput = document.getElementById('code-export-output');
+      if (codeOutput) {
+        navigator.clipboard.writeText(codeOutput.textContent).then(() => {
+          copyExportBtn.textContent = 'Copied!';
+          setTimeout(() => { copyExportBtn.textContent = 'Copy to Clipboard'; }, 2000);
+        });
+      }
+    });
+  }
+
+  // Custom Alias adding form handler
+  const btnAddAlias = document.getElementById('btn-add-alias');
+  const inputName = document.getElementById('custom-alias-name');
+  const inputValue = document.getElementById('custom-alias-value');
+  
+  if (btnAddAlias && inputName && inputValue) {
+    btnAddAlias.addEventListener('click', () => {
+      showAliasError(''); // Reset
+      const name = inputName.value.trim();
+      const value = inputValue.value.trim();
+      
+      if (!name || !value) {
+        showAliasError('Both Name and Command fields are required.');
+        return;
+      }
+      
+      const aliasNamePattern = /^[a-zA-Z0-9_\-]+$/;
+      if (!aliasNamePattern.test(name)) {
+        showAliasError('Name must be alphanumeric and contain no spaces.');
+        return;
+      }
+      
+      const exists = state.aliases.custom.some(item => item.name === name);
+      if (exists) {
+        showAliasError(`Alias "${name}" already exists!`);
+        return;
+      }
+      
+      state.aliases.custom.push({ name, value });
+      inputName.value = '';
+      inputValue.value = '';
+      
+      renderCustomAliasesList();
+      updateExportOutput();
+    });
+  }
+}
+
+// ==========================================================================
+// TABS & THEMES TOGGLES
+// ==========================================================================
+function setupCategoryTabs() {
+  const tabs = document.querySelectorAll('.category-tab-btn');
+  tabs.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetPanelId = btn.getAttribute('data-target');
+      
+      tabs.forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-selected', 'false');
+      });
+      
+      const panels = document.querySelectorAll('.category-panel-view');
+      panels.forEach(p => {
+        p.style.display = 'none';
+        p.classList.remove('active');
+      });
+      
+      btn.classList.add('active');
+      btn.setAttribute('aria-selected', 'true');
+      const targetPanel = document.getElementById(targetPanelId);
+      if (targetPanel) {
+        targetPanel.style.display = 'flex';
+        targetPanel.classList.add('active');
+      }
+    });
+  });
+}
+
+function setupTabToggles() {
+  const tabs = [
+    { buttonId: 'btn-tab-instructions', panelId: 'tab-instructions' },
+    { buttonId: 'btn-tab-editor', panelId: 'tab-editor' }
+  ];
+
+  tabs.forEach(tab => {
+    const btn = document.getElementById(tab.buttonId);
+    const panel = document.getElementById(tab.panelId);
+    
+    if (btn && panel) {
+      btn.addEventListener('click', () => {
+        tabs.forEach(t => {
+          const b = document.getElementById(t.buttonId);
+          const p = document.getElementById(t.panelId);
+          if (b && p) {
+            b.classList.remove('active');
+            b.setAttribute('aria-selected', 'false');
+            p.style.display = 'none';
+          }
+        });
+
+        btn.classList.add('active');
+        btn.setAttribute('aria-selected', 'true');
+        panel.style.display = 'flex';
+      });
+    }
+  });
+}
+
+function setupThemeToggles() {
+  // Global Light/Dark Theme Mode Toggle
+  const themeToggleBtn = document.getElementById('btn-theme-toggle');
+  const sunIcon = themeToggleBtn ? themeToggleBtn.querySelector('.theme-icon-light') : null;
+  const moonIcon = themeToggleBtn ? themeToggleBtn.querySelector('.theme-icon-dark') : null;
+  
+  if (themeToggleBtn && sunIcon && moonIcon) {
+    themeToggleBtn.addEventListener('click', () => {
+      const isLight = document.body.classList.toggle('light-mode');
+      document.body.classList.toggle('dark-mode', !isLight);
+      
+      if (isLight) {
+        sunIcon.style.display = 'inline-block';
+        moonIcon.style.display = 'none';
+      } else {
+        sunIcon.style.display = 'none';
+        moonIcon.style.display = 'inline-block';
+      }
+    });
+  }
+
+  // Terminal Theme Select Handler
+  const selectTerminalTheme = document.getElementById('select-terminal-theme');
+  const terminalWindow = document.getElementById('terminal-window');
+  
+  if (selectTerminalTheme && terminalWindow) {
+    selectTerminalTheme.addEventListener('change', () => {
+      const selected = selectTerminalTheme.value;
+      state.terminalTheme = selected;
+      terminalWindow.setAttribute('data-theme', selected);
+    });
+  }
+}
+
+// Rendering left catalog prompt templates
 function renderTemplatesCatalog() {
   const container = document.getElementById('templates-list');
   if (!container) return;
 
   container.replaceChildren();
 
-  // Filter templates based on query and active filter tag
   const filtered = TEMPLATES.filter(tpl => {
     const matchesSearch = tpl.name.toLowerCase().includes(state.searchQuery.toLowerCase()) || 
                           tpl.description.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
                           tpl.ps1.toLowerCase().includes(state.searchQuery.toLowerCase());
-    
     const matchesCategory = state.activeCategory === 'all' || tpl.tags.includes(state.activeCategory);
-    
     return matchesSearch && matchesCategory;
   });
 
-  // Update counts badge
   const countBadge = document.getElementById('catalog-count');
   if (countBadge) {
     countBadge.textContent = `${filtered.length} Theme${filtered.length === 1 ? '' : 's'}`;
@@ -626,13 +1646,12 @@ function renderTemplatesCatalog() {
         editorTextarea.value = tpl.ps1;
       }
       updateAllPreviews();
-      renderTemplatesCatalog(); // Refresh active states
+      renderTemplatesCatalog();
     });
     actionRow.appendChild(applyBtn);
 
     card.appendChild(actionRow);
 
-    // Clicking card loads the prompt
     card.addEventListener('click', () => {
       state.ps1 = tpl.ps1;
       const editorTextarea = document.getElementById('input-ps1');
@@ -640,7 +1659,7 @@ function renderTemplatesCatalog() {
         editorTextarea.value = tpl.ps1;
       }
       updateAllPreviews();
-      renderTemplatesCatalog(); // Refresh active states
+      renderTemplatesCatalog();
     });
 
     container.appendChild(card);
@@ -649,377 +1668,10 @@ function renderTemplatesCatalog() {
   if (filtered.length === 0) {
     const emptyState = document.createElement('div');
     emptyState.className = 'text-muted';
-    emptyState.style.textAlign = 'center';
     emptyState.style.padding = '40px 0';
-    emptyState.textContent = 'No matching prompt layouts found.';
+    emptyState.style.textAlign = 'center';
+    emptyState.textContent = 'No matching templates found.';
     container.appendChild(emptyState);
-  }
-}
-
-// ==========================================================================
-// INTERACTIVE CLI SIMULATOR ENGINE
-// ==========================================================================
-function setupTerminalSimulator() {
-  const terminalInput = document.getElementById('terminal-input');
-  const terminalHistory = document.getElementById('terminal-history');
-  const terminalScreen = document.getElementById('terminal-screen');
-  const terminalInputDisplay = document.getElementById('terminal-input-display');
-  
-  if (!terminalInput || !terminalHistory || !terminalScreen) return;
-
-  // Synchronize dynamic input typing to span display
-  terminalInput.addEventListener('input', () => {
-    if (terminalInputDisplay) {
-      terminalInputDisplay.textContent = terminalInput.value;
-    }
-  });
-
-  // Handle command submissions
-  terminalInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      const commandLine = terminalInput.value.trim();
-      terminalInput.value = ''; // Reset input immediately
-      if (terminalInputDisplay) {
-        terminalInputDisplay.textContent = ''; // Reset display immediately
-      }
-      
-      // 1. Snapshot the current prompt and add to history
-      const promptSnapshotDiv = document.createElement('div');
-      promptSnapshotDiv.className = 'history-line';
-      
-      const promptSpan = document.createElement('span');
-      promptSpan.className = 'prompt-container';
-      const promptSegs = parsePS1(state.ps1, state.config);
-      renderPS1ToElement(promptSegs, promptSpan);
-      promptSnapshotDiv.appendChild(promptSpan);
-
-      const commandSpan = document.createElement('span');
-      commandSpan.style.marginLeft = '8px';
-      commandSpan.textContent = commandLine;
-      promptSnapshotDiv.appendChild(commandSpan);
-
-      terminalHistory.appendChild(promptSnapshotDiv);
-
-      // 2. Process command outputs
-      if (commandLine) {
-        const parts = commandLine.split(' ');
-        const cmd = parts[0].toLowerCase();
-        const args = parts.slice(1);
-
-        const outputDiv = document.createElement('div');
-        outputDiv.className = 'history-line';
-
-        switch (cmd) {
-          case 'help':
-            const helpPre = document.createElement('pre');
-            helpPre.textContent = 
-`Available simulated commands:
-  help          Display this menu
-  ls            List files in active folder
-  whoami        Display current terminal user
-  date          Display current date/time info
-  git status    Show git branch information (if git is active)
-  cowsay <msg>  Simulate the famous retro cowsay command
-  clear         Reset terminal logs
-  theme <name>  Change terminal color palette (dracula, nord, etc)`;
-            outputDiv.appendChild(helpPre);
-            terminalHistory.appendChild(outputDiv);
-            break;
-            
-          case 'ls':
-            const lsPre = document.createElement('pre');
-            lsPre.style.color = 'var(--term-blue)';
-            lsPre.textContent = `LICENSE   README.md   app.js   index.html   style.css`;
-            outputDiv.appendChild(lsPre);
-            terminalHistory.appendChild(outputDiv);
-            break;
-            
-          case 'whoami':
-            outputDiv.textContent = state.config.username;
-            terminalHistory.appendChild(outputDiv);
-            break;
-            
-          case 'date':
-            outputDiv.textContent = new Date().toString();
-            terminalHistory.appendChild(outputDiv);
-            break;
-            
-          case 'git':
-            if (args[0] === 'status') {
-              const gitPre = document.createElement('pre');
-              if (state.config.gitEnabled) {
-                gitPre.textContent = 
-`On branch ${state.config.gitBranch}
-Your branch is up to date with 'origin/${state.config.gitBranch}'.
-
-nothing to commit, working tree clean`;
-              } else {
-                gitPre.style.color = 'var(--term-red)';
-                gitPre.textContent = `fatal: not a git repository (or any of the parent directories): .git`;
-              }
-              outputDiv.appendChild(gitPre);
-            } else {
-              outputDiv.textContent = `git: simulated command only supports "git status"`;
-            }
-            terminalHistory.appendChild(outputDiv);
-            break;
-            
-          case 'cowsay':
-            const cowsayMsg = args.join(' ') || 'Mooo!';
-            const cowPre = document.createElement('pre');
-            
-            // Build ASCII speech box
-            const borderLen = cowsayMsg.length + 2;
-            const topBorder = ` _` + `_`.repeat(borderLen) + `_`;
-            const bottomBorder = ` -` + `-`.repeat(borderLen) + `-`;
-            
-            cowPre.textContent = 
-`${topBorder}
-< ${cowsayMsg} >
-${bottomBorder}
-        \\   ^__^
-         \\  (oo)\\_______
-            (__)\\       )\\/\\
-                ||----w |
-                ||     ||`;
-            outputDiv.appendChild(cowPre);
-            terminalHistory.appendChild(outputDiv);
-            break;
-            
-          case 'clear':
-            terminalHistory.replaceChildren();
-            break;
-            
-          case 'theme':
-            const reqTheme = args[0] ? args[0].toLowerCase() : '';
-            const validThemes = ['dracula', 'onedark', 'nord', 'retro-green', 'solarized-light', 'github-light'];
-            if (validThemes.includes(reqTheme)) {
-              state.terminalTheme = reqTheme;
-              const termWin = document.getElementById('terminal-window');
-              const selectTheme = document.getElementById('select-terminal-theme');
-              if (termWin) termWin.setAttribute('data-theme', reqTheme);
-              if (selectTheme) selectTheme.value = reqTheme;
-              
-              outputDiv.textContent = `Terminal theme switched to "${reqTheme}".`;
-            } else {
-              outputDiv.style.color = 'var(--term-red)';
-              outputDiv.textContent = `Theme "${reqTheme}" not found. Try: ${validThemes.join(', ')}`;
-            }
-            terminalHistory.appendChild(outputDiv);
-            break;
-            
-          default:
-            outputDiv.style.color = 'var(--term-red)';
-            outputDiv.textContent = `bash: command not found: ${cmd}`;
-            terminalHistory.appendChild(outputDiv);
-        }
-      }
-
-      // Auto scroll terminal screen to bottom
-      terminalScreen.scrollTop = terminalScreen.scrollHeight;
-    }
-  });
-
-  // Keep focus on terminal input when clicking the terminal screen body
-  terminalScreen.addEventListener('click', () => {
-    terminalInput.focus();
-  });
-
-  // Clear button handler
-  const btnClear = document.getElementById('btn-clear-terminal');
-  if (btnClear) {
-    btnClear.addEventListener('click', (e) => {
-      e.stopPropagation();
-      terminalHistory.replaceChildren();
-      terminalInput.focus();
-    });
-  }
-}
-
-// ==========================================================================
-// CONFIGURATION CONTROLS & TAB EVENT HANDLERS
-// ==========================================================================
-function setupConfigControls() {
-  // Variables setup inputs
-  const inputs = {
-    username: document.getElementById('input-username'),
-    hostname: document.getElementById('input-hostname'),
-    directory: document.getElementById('input-directory'),
-    gitBranch: document.getElementById('input-git-branch'),
-    gitEnabled: document.getElementById('toggle-git'),
-    isRoot: document.getElementById('toggle-root'),
-    exitStatusFailed: document.getElementById('toggle-exit-code'),
-    ps1Textarea: document.getElementById('input-ps1')
-  };
-
-  // Attach change listeners to variables
-  const updateStateConfig = () => {
-    if (inputs.username) state.config.username = inputs.username.value || 'guest';
-    if (inputs.hostname) {
-      state.config.hostname = inputs.hostname.value || 'linux';
-      // Sync terminal title bar title
-      const titleBar = document.getElementById('terminal-window-title');
-      if (titleBar) {
-        titleBar.textContent = `bash — ${state.config.username}@${state.config.hostname}: ${state.config.directory}`;
-      }
-    }
-    if (inputs.directory) {
-      state.config.directory = inputs.directory.value || '~';
-      // Sync terminal title bar title
-      const titleBar = document.getElementById('terminal-window-title');
-      if (titleBar) {
-        titleBar.textContent = `bash — ${state.config.username}@${state.config.hostname}: ${state.config.directory}`;
-      }
-    }
-    if (inputs.gitBranch) state.config.gitBranch = inputs.gitBranch.value || 'main';
-    if (inputs.gitEnabled) state.config.gitEnabled = inputs.gitEnabled.checked;
-    if (inputs.isRoot) state.config.isRoot = inputs.isRoot.checked;
-    if (inputs.exitStatusFailed) state.config.exitStatusFailed = inputs.exitStatusFailed.checked;
-
-    updateAllPreviews();
-    renderTemplatesCatalog(); // Refresh card render templates with updated parameters
-  };
-
-  Object.values(inputs).forEach(inputEl => {
-    if (!inputEl) return;
-    const eventType = inputEl.type === 'checkbox' ? 'change' : 'input';
-    inputEl.addEventListener(eventType, updateStateConfig);
-  });
-
-  // Raw PS1 editor textarea input handler
-  if (inputs.ps1Textarea) {
-    inputs.ps1Textarea.addEventListener('input', () => {
-      state.ps1 = inputs.ps1Textarea.value;
-      updateAllPreviews();
-    });
-  }
-
-  // Insert buttons in PS1 Editor
-  const insertButtons = document.querySelectorAll('.btn-insert');
-  insertButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const valToInsert = btn.getAttribute('data-value');
-      if (inputs.ps1Textarea && valToInsert) {
-        const textarea = inputs.ps1Textarea;
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        
-        textarea.value = textarea.value.substring(0, start) + valToInsert + textarea.value.substring(end);
-        textarea.focus();
-        
-        // Put cursor after inserted string
-        textarea.selectionStart = textarea.selectionEnd = start + valToInsert.length;
-        
-        // Update state & previews
-        state.ps1 = textarea.value;
-        updateAllPreviews();
-      }
-    });
-  });
-
-  // Search templates input
-  const searchInput = document.getElementById('search-templates');
-  if (searchInput) {
-    searchInput.addEventListener('input', () => {
-      state.searchQuery = searchInput.value;
-      renderTemplatesCatalog();
-    });
-  }
-
-  // Categories filter click handlers
-  const filterButtons = document.querySelectorAll('#category-filters .filter-btn');
-  filterButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      filterButtons.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.activeCategory = btn.getAttribute('data-category');
-      renderTemplatesCatalog();
-    });
-  });
-
-  // Clipboard copy exports handler
-  const copyExportBtn = document.getElementById('btn-copy-export');
-  if (copyExportBtn) {
-    copyExportBtn.addEventListener('click', () => {
-      const codeOutput = document.getElementById('code-export-output');
-      if (codeOutput) {
-        navigator.clipboard.writeText(codeOutput.textContent).then(() => {
-          copyExportBtn.textContent = 'Copied!';
-          setTimeout(() => { copyExportBtn.textContent = 'Copy to Clipboard'; }, 2000);
-        });
-      }
-    });
-  }
-}
-
-// ==========================================================================
-// TABS & THEMES TOGGLES
-// ==========================================================================
-function setupTabToggles() {
-  const tabs = [
-    { buttonId: 'btn-tab-variables', panelId: 'tab-variables' },
-    { buttonId: 'btn-tab-editor', panelId: 'tab-editor' },
-    { buttonId: 'btn-tab-instructions', panelId: 'tab-instructions' }
-  ];
-
-  tabs.forEach(tab => {
-    const btn = document.getElementById(tab.buttonId);
-    const panel = document.getElementById(tab.panelId);
-    
-    if (btn && panel) {
-      btn.addEventListener('click', () => {
-        // Deactivate all
-        tabs.forEach(t => {
-          const b = document.getElementById(t.buttonId);
-          const p = document.getElementById(t.panelId);
-          if (b && p) {
-            b.classList.remove('active');
-            b.setAttribute('aria-selected', 'false');
-            p.style.display = 'none';
-          }
-        });
-
-        // Activate clicked
-        btn.classList.add('active');
-        btn.setAttribute('aria-selected', 'true');
-        panel.style.display = 'flex';
-      });
-    }
-  });
-}
-
-function setupThemeToggles() {
-  // Global Light/Dark Theme Mode Toggle
-  const themeToggleBtn = document.getElementById('btn-theme-toggle');
-  const sunIcon = themeToggleBtn ? themeToggleBtn.querySelector('.theme-icon-light') : null;
-  const moonIcon = themeToggleBtn ? themeToggleBtn.querySelector('.theme-icon-dark') : null;
-  
-  if (themeToggleBtn && sunIcon && moonIcon) {
-    themeToggleBtn.addEventListener('click', () => {
-      const isLight = document.body.classList.toggle('light-mode');
-      document.body.classList.toggle('dark-mode', !isLight);
-      
-      // Update toggle icon visibility
-      if (isLight) {
-        sunIcon.style.display = 'inline-block';
-        moonIcon.style.display = 'none';
-      } else {
-        sunIcon.style.display = 'none';
-        moonIcon.style.display = 'inline-block';
-      }
-    });
-  }
-
-  // Terminal Theme Select Handler
-  const selectTerminalTheme = document.getElementById('select-terminal-theme');
-  const terminalWindow = document.getElementById('terminal-window');
-  
-  if (selectTerminalTheme && terminalWindow) {
-    selectTerminalTheme.addEventListener('change', () => {
-      const selected = selectTerminalTheme.value;
-      state.terminalTheme = selected;
-      terminalWindow.setAttribute('data-theme', selected);
-    });
   }
 }
 
@@ -1030,14 +1682,21 @@ document.addEventListener('DOMContentLoaded', () => {
   // 1. Setup Theme selectors and Dark/Light Mode state triggers
   setupThemeToggles();
 
-  // 2. Setup interactive variables controls & PS1 editor shortcuts
+  // 2. Setup interactive variables controls & aliases/functions toggles
   setupConfigControls();
 
-  // 3. Setup tabs layout switching
+  // 3. Setup left panel category switching tabs
+  setupCategoryTabs();
+
+  // 4. Setup right panel tabs
   setupTabToggles();
 
-  // 4. Setup mock CLI inputs and handlers
+  // 5. Setup mock CLI inputs and handlers
   setupTerminalSimulator();
+
+  // Render initial lists
+  renderCustomAliasesList();
+  renderTemplatesCatalog();
 
   // Set initial random branch in input field
   const gitBranchInput = document.getElementById('input-git-branch');
@@ -1045,9 +1704,6 @@ document.addEventListener('DOMContentLoaded', () => {
     gitBranchInput.value = state.config.gitBranch;
   }
 
-  // 5. Draw the left column prompts library
-  renderTemplatesCatalog();
-
-  // 6. Draw the initial active rendering for the default Ubuntu prompt
+  // 6. Draw the initial previews and exports
   updateAllPreviews();
 });
