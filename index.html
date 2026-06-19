@@ -104,13 +104,12 @@
             
             <!-- Active Prompt Row -->
             <div class="active-prompt-row">
-              <span class="prompt-container" id="terminal-prompt-preview">
-                <!-- Rendered PS1 spans go here -->
-              </span>
-              <div class="input-container">
-                <input type="text" id="terminal-input" autocomplete="off" spellcheck="false" aria-label="Terminal input" autofocus>
+              <span class="prompt-container" id="terminal-prompt-preview"></span>
+              <span class="input-wrapper">
+                <span id="terminal-input-display"></span>
                 <span class="cursor" id="terminal-cursor"></span>
-              </div>
+                <input type="text" id="terminal-input" autocomplete="off" spellcheck="false" aria-label="Terminal input" autofocus>
+              </span>
             </div>
           </div>
         </div>

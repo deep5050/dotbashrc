@@ -284,6 +284,7 @@ body {
   letter-spacing: -0.5px;
   background: linear-gradient(135deg, var(--text-main) 30%, var(--accent));
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -362,6 +363,8 @@ body {
   gap: 24px;
   margin-bottom: 24px;
   align-items: stretch;
+  height: calc(100vh - var(--header-height) - var(--footer-height) - 40px);
+  min-height: 720px;
 }
 
 .panel {
@@ -403,7 +406,8 @@ body {
    LEFT PANEL: TEMPLATES CATALOG
    ========================================================================== */
 .catalog-panel {
-  max-height: calc(100vh - var(--header-height) - var(--footer-height) - 48px);
+  height: 100%;
+  overflow: hidden;
 }
 
 .catalog-filters {
@@ -621,6 +625,8 @@ body {
   border: none;
   box-shadow: none;
   backdrop-filter: none;
+  height: 100%;
+  overflow-y: auto;
 }
 
 /* Terminal Emulator Layout */
@@ -727,8 +733,9 @@ body {
 
 .active-prompt-row {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
   width: 100%;
 }
 
@@ -738,23 +745,38 @@ body {
   white-space: pre-wrap;
 }
 
-.input-container {
-  display: flex;
+.input-wrapper {
+  display: inline-flex;
   align-items: center;
-  width: 100%;
-  margin-top: 2px;
+  position: relative;
+  flex: 1;
+  min-width: 50px;
+  margin-left: 2px;
+}
+
+#terminal-input-display {
+  white-space: pre;
+  color: var(--term-fg);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .terminal-body input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   background: transparent;
   border: none;
   outline: none;
   font-family: var(--font-mono);
   font-size: 14px;
-  color: var(--term-fg);
-  flex: 1;
-  caret-color: transparent; /* custom cursor */
-  text-shadow: var(--term-glow);
+  color: transparent;
+  caret-color: transparent;
+  z-index: 2;
+  cursor: text;
 }
 
 .cursor {
@@ -762,7 +784,7 @@ body {
   width: 8px;
   height: 15px;
   background-color: var(--term-fg);
-  margin-left: -5px; /* align with overlapping text */
+  margin-left: 1px;
   box-shadow: var(--term-glow);
   animation: blink 1s step-end infinite;
 }

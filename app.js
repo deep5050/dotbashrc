@@ -59,8 +59,77 @@ const TEMPLATES = [
     description: 'Muted Nord theme style using whites, greys, and icy blues.',
     ps1: '\\[\\e[38;5;244m\\]\\u\\[\\e[38;5;239m\\]::\\[\\e[38;5;110m\\]\\h \\[\\e[38;5;250m\\]\\W \\[\\e[38;5;110m\\]$ \\[\\e[0m\\]',
     tags: ['minimal']
+  },
+  {
+    id: 'toxic-wasteland',
+    name: 'Toxic Wasteland',
+    description: 'Biohazard warning theme featuring glowing radioactive green highlights and red skull warnings.',
+    ps1: '\\[\\e[95m\\]☣ \\[\\e[01;92m\\]\\u\\[\\e[90m\\]@\\[\\e[01;32m\\]\\h \\[\\e[5;91m\\]☠\\[\\e[00m\\] \\[\\e[36m\\]\\W\\[\\e[00m\\] \\$ ',
+    tags: ['colorful']
+  },
+  {
+    id: 'ide-statusbar',
+    name: 'IDE Statusbar',
+    description: 'Uses inverted colors and chevrons to replicate a Vim or Tmux powerline status indicator line.',
+    ps1: '\\[\\e[38;5;232;48;5;117m\\] BASH \\[\\e[0;38;5;117;48;5;238m\\]\\[\\e[38;5;253;48;5;238m\\] \\w \\[\\e[0;38;5;238m\\]\\[\\e[0m\\] \\$ ',
+    tags: ['powerline', 'colorful']
+  },
+  {
+    id: 'emoji-minimal',
+    name: 'Emoji Minimalist',
+    description: 'Uses graphic icons (folder, lightning bolt) for structured navigation.',
+    ps1: '\\[\\e[0m\\]📂 \\[\\e[01;34m\\]\\W\\[\\e[00m\\] \\[\\e[33m\\]⚡\\[\\e[00m\\] \\[\\e[01;36m\\]❯\\[\\e[00m\\] ',
+    tags: ['minimal']
+  },
+  {
+    id: 'starship-rust',
+    name: 'Starship Style',
+    description: 'Modern prompt layout heavily inspired by the Rust Starship shell decorator prompt.',
+    ps1: '\\[\\e[01;32m\\]🚀 \\[\\e[38;5;45m\\]\\u\\[\\e[00m\\] in \\[\\e[01;34m\\]\\W\\[\\e[38;5;125m\\]\\$(__git_ps1)\\[\\e[00m\\]\\n\\[\\e[01;32m\\]❯\\[\\e[00m\\] ',
+    tags: ['git', 'minimal']
+  },
+  {
+    id: 'ssh-cloud',
+    name: 'Cloud Instance (SSH)',
+    description: 'Clean light-blue environment prompt resembling a cloud server console.',
+    ps1: '\\[\\e[38;5;111m\\]☁  \\[\\e[38;5;117m\\]\\u@\\h \\[\\e[38;5;153m\\]\\W \\[\\e[38;5;111m\\]☁ \\[\\e[0m\\] \\$ ',
+    tags: ['classic']
+  },
+  {
+    id: 'glitch-retro',
+    name: 'Glitch Retro Terminal',
+    description: 'Imitates a decaying CRT phosphor display with custom glitch characters and alerts.',
+    ps1: '\\[\\e[31m\\]\\u\\[\\e[33m\\]@\\[\\e[36m\\]\\h\\[\\e[32m\\] \\W \\[\\e[5;31m\\]■\\[\\e[0m\\] ',
+    tags: ['colorful']
+  },
+  {
+    id: 'elegant-line',
+    name: 'Timeline Double',
+    description: 'Double-row prompt tracking execution timestamps above commands.',
+    ps1: '\\[\\e[90m\\]\\t \\[\\e[34m\\]\\w\\[\\e[0m\\]\\n\\[\\e[32m\\]❯\\[\\e[0m\\] ',
+    tags: ['classic', 'minimal']
+  },
+  {
+    id: 'matrix-rain',
+    name: 'Matrix Falling Rain',
+    description: 'Phosphor green theme with glowing highlights. Emulates the Matrix code interface.',
+    ps1: '\\[\\e[32m\\]$ \\[\\e[1;32m\\]\\u\\[\\e[0;32m\\]@\\[\\e[1;32m\\]\\h\\[\\e[0;32m\\]:\\w\\$ \\[\\e[0m\\]',
+    tags: ['colorful', 'minimal']
   }
 ];
+
+// Predefined branch names for simulation
+const RANDOM_BRANCHES = [
+  'main',
+  'dev',
+  'feature/auth-bypass',
+  'feature/login-ui',
+  'bugfix/db-leak-fix',
+  'release-v2.3.0',
+  'hotfix-patch-5'
+];
+
+const getRandomBranch = () => RANDOM_BRANCHES[Math.floor(Math.random() * RANDOM_BRANCHES.length)];
 
 // App State
 const state = {
@@ -68,7 +137,7 @@ const state = {
     username: 'guest',
     hostname: 'linux',
     directory: '~/projects/dotbashrc',
-    gitBranch: 'main',
+    gitBranch: getRandomBranch(),
     gitEnabled: true,
     isRoot: false,
     exitStatusFailed: false
@@ -166,7 +235,7 @@ function parsePS1(ps1Str, config) {
 
   // Tokenizer pattern
   // Matches: ANSI codes, escaped brackets, macros, and plain strings
-  const tokenRegex = /(\\e\[[0-9;]*m|\\033\[[0-9;]*m|\\x1b\[[0-9;]*m|\\\[|\\\]|\\u|\\h|\\H|\\w|\\W|\\d|\\t|\\T|\\@|\\A|\\s|\\v|\\V|\\\$|\\n|\\r|\\\\|\$\(__git_ps1\)|[^\$\\\x1b\[\]]+|.)/g;
+  const tokenRegex = /(\\e\[[0-9;]*m|\\033\[[0-9;]*m|\\x1b\[[0-9;]*m|\\\[|\\\]|\\u|\\h|\\H|\\w|\\W|\\d|\\t|\\T|\\@|\\A|\\s|\\v|\\V|\\\$|\\n|\\r|\\\\|\\?\\$\\(__git_ps1\\)|[^\$\\\x1b\[\]]+|.)/g;
   const matches = ps1Str.match(tokenRegex) || [];
 
   for (let token of matches) {
@@ -267,7 +336,7 @@ function parsePS1(ps1Str, config) {
       else if (token === '\\n') { resolvedText = '\n'; isSpecial = true; type = 'newline'; }
       else if (token === '\\r') { resolvedText = ''; isSpecial = true; type = 'carriage-return'; }
       else if (token === '\\\\') { resolvedText = '\\'; }
-      else if (token === '$(__git_ps1)') { resolvedText = gitBranchText; isSpecial = true; type = 'git-branch'; }
+      else if (token === '$(__git_ps1)' || token === '\\$(__git_ps1)') { resolvedText = gitBranchText; isSpecial = true; type = 'git-branch'; }
       else {
         resolvedText = token;
       }
@@ -594,14 +663,25 @@ function setupTerminalSimulator() {
   const terminalInput = document.getElementById('terminal-input');
   const terminalHistory = document.getElementById('terminal-history');
   const terminalScreen = document.getElementById('terminal-screen');
+  const terminalInputDisplay = document.getElementById('terminal-input-display');
   
   if (!terminalInput || !terminalHistory || !terminalScreen) return;
+
+  // Synchronize dynamic input typing to span display
+  terminalInput.addEventListener('input', () => {
+    if (terminalInputDisplay) {
+      terminalInputDisplay.textContent = terminalInput.value;
+    }
+  });
 
   // Handle command submissions
   terminalInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       const commandLine = terminalInput.value.trim();
       terminalInput.value = ''; // Reset input immediately
+      if (terminalInputDisplay) {
+        terminalInputDisplay.textContent = ''; // Reset display immediately
+      }
       
       // 1. Snapshot the current prompt and add to history
       const promptSnapshotDiv = document.createElement('div');
@@ -958,6 +1038,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 4. Setup mock CLI inputs and handlers
   setupTerminalSimulator();
+
+  // Set initial random branch in input field
+  const gitBranchInput = document.getElementById('input-git-branch');
+  if (gitBranchInput) {
+    gitBranchInput.value = state.config.gitBranch;
+  }
 
   // 5. Draw the left column prompts library
   renderTemplatesCatalog();
