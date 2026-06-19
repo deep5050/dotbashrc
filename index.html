@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bashrc PS1 Visualizer & Generator</title>
-  <meta name="description" content="A sleek, interactive bash prompt (PS1) designer, customizer, and visualizer. Choose beautiful prompt templates, preview them in a live simulated terminal, and copy bash configuration code instantly.">
+  <title>dotbashrc — Interactive .bashrc Customizer & Visualizer</title>
+  <meta name="description" content="Configure prompts, aliases, helper functions, and history settings interactively. Visualized in a live terminal simulator. Export a unified .bashrc config file instantly.">
   
   <!-- SEO & OpenGraph Meta Tags -->
-  <meta property="og:title" content="Bashrc PS1 Visualizer & Generator">
-  <meta property="og:description" content="Design, preview, and build custom bash prompts interactively with a live terminal mockup.">
+  <meta property="og:title" content="dotbashrc — Interactive .bashrc Builder & Visualizer">
+  <meta property="og:description" content="Configure prompts, aliases, shell scripts, and behavior settings in a live terminal mockup.">
   <meta property="og:type" content="website">
 
   <!-- Google Fonts -->
@@ -26,8 +26,8 @@
       <div class="header-logo">
         <div class="logo-icon">🐚</div>
         <div class="logo-text">
-          <h1>PS1 Visualizer</h1>
-          <span class="logo-subtitle">Interactive Bash Prompt Designer</span>
+          <h1>dotbashrc</h1>
+          <span class="logo-subtitle">Interactive .bashrc Builder & Visualizer</span>
         </div>
       </div>
       <div class="header-controls">
@@ -53,28 +53,226 @@
 
     <!-- Main Content Grid -->
     <main class="app-content">
-      <!-- Left Panel: Predefined Templates Catalog -->
+      <!-- Left Panel: Category Settings Dashboard -->
       <section id="catalog-section" class="panel catalog-panel" aria-labelledby="catalog-title">
         <div class="panel-header">
-          <h2 id="catalog-title">Prompt Templates</h2>
-          <span class="panel-badge" id="catalog-count">0 Themes</span>
+          <h2 id="catalog-title">Configuration Dashboard</h2>
+          <span class="panel-badge" id="catalog-count">Settings</span>
         </div>
-        <div class="catalog-filters">
-          <div class="search-box">
-            <span class="search-icon">🔍</span>
-            <input type="text" id="search-templates" placeholder="Search prompts..." aria-label="Search prompt templates">
-          </div>
-          <div class="filter-tags" id="category-filters">
-            <button class="filter-btn active" data-category="all">All</button>
-            <button class="filter-btn" data-category="minimal">Minimal</button>
-            <button class="filter-btn" data-category="colorful">Colorful</button>
-            <button class="filter-btn" data-category="powerline">Powerline</button>
-            <button class="filter-btn" data-category="git">Git-Ready</button>
-          </div>
+        
+        <!-- Left Panel Category Navigation Tabs -->
+        <div class="category-tabs" role="tablist">
+          <button class="category-tab-btn active" data-target="panel-themes" title="Theme and PS1 selection" role="tab" aria-selected="true">🎨 Themes</button>
+          <button class="category-tab-btn" data-target="panel-variables" title="Custom variables like host/username" role="tab" aria-selected="false">⚙️ Vars</button>
+          <button class="category-tab-btn" data-target="panel-aliases" title="Command shortcuts" role="tab" aria-selected="false">🚀 Aliases</button>
+          <button class="category-tab-btn" data-target="panel-functions" title="Utility shell scripts" role="tab" aria-selected="false">📦 Funcs</button>
+          <button class="category-tab-btn" data-target="panel-options" title="Bash shell options" role="tab" aria-selected="false">🔧 Options</button>
         </div>
-        <!-- Scrollable templates container -->
-        <div class="templates-list" id="templates-list">
-          <!-- Dynamic rendering via JS -->
+        
+        <!-- Settings Content Area -->
+        <div class="category-content">
+          <!-- 1. Themes Tab Panel -->
+          <div class="category-panel-view active" id="panel-themes" role="tabpanel">
+            <div class="catalog-filters">
+              <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="search-templates" placeholder="Search prompts..." aria-label="Search prompt templates">
+              </div>
+              <div class="filter-tags" id="category-filters">
+                <button class="filter-btn active" data-category="all">All</button>
+                <button class="filter-btn" data-category="minimal">Minimal</button>
+                <button class="filter-btn" data-category="colorful">Colorful</button>
+                <button class="filter-btn" data-category="powerline">Powerline</button>
+                <button class="filter-btn" data-category="git">Git-Ready</button>
+              </div>
+            </div>
+            <!-- Scrollable templates container -->
+            <div class="templates-list" id="templates-list">
+              <!-- Dynamic rendering via JS -->
+            </div>
+          </div>
+          
+          <!-- 2. Variables Tab Panel -->
+          <div class="category-panel-view" id="panel-variables" role="tabpanel" style="display: none;">
+            <div class="settings-scroll-box">
+              <div class="variables-form">
+                <div class="form-group">
+                  <label for="input-username">Username (\u)</label>
+                  <input type="text" id="input-username" value="guest" placeholder="e.g. guest">
+                </div>
+                <div class="form-group">
+                  <label for="input-hostname">Hostname (\h)</label>
+                  <input type="text" id="input-hostname" value="linux" placeholder="e.g. localhost">
+                </div>
+                <div class="form-group">
+                  <label for="input-directory">Working Directory (\w)</label>
+                  <input type="text" id="input-directory" value="~/projects/dotbashrc" placeholder="e.g. ~/dev/app">
+                </div>
+                <div class="form-group">
+                  <label for="input-git-branch">Git Branch (Simulated)</label>
+                  <div class="git-input-group">
+                    <input type="text" id="input-git-branch" value="main" placeholder="e.g. main">
+                    <label class="switch-toggle" title="Enable Git Branch in preview">
+                      <input type="checkbox" id="toggle-git" checked>
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <span class="label-text">Shell Status Indicator</span>
+                  <div class="toggles-row-vertical">
+                    <label class="toggle-control">
+                      <input type="checkbox" id="toggle-root">
+                      <span class="control-label">Root privileges (\$) - display '#'</span>
+                    </label>
+                    <label class="toggle-control">
+                      <input type="checkbox" id="toggle-exit-code">
+                      <span class="control-label">Last command failed exit status</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 3. Aliases Tab Panel -->
+          <div class="category-panel-view" id="panel-aliases" role="tabpanel" style="display: none;">
+            <div class="settings-scroll-box">
+              <div class="aliases-section">
+                <h3>Predefined Alias Bundles</h3>
+                <div class="toggles-row-vertical">
+                  <label class="toggle-control">
+                    <input type="checkbox" id="alias-group-git" checked>
+                    <span class="control-label">Git Shortcuts (`g`, `gs`, `gp`, `gd`, `gcm`)</span>
+                  </label>
+                  <label class="toggle-control">
+                    <input type="checkbox" id="alias-group-nav" checked>
+                    <span class="control-label">Navigation Hacks (`..`, `...`, `ll`, `la`)</span>
+                  </label>
+                  <label class="toggle-control">
+                    <input type="checkbox" id="alias-group-safe">
+                    <span class="control-label">Safety Prompts (`rm -i`, `cp -i`, `mv -i`)</span>
+                  </label>
+                </div>
+                
+                <h3 class="section-title">Add Custom Alias</h3>
+                <div class="custom-alias-form">
+                  <div class="input-row">
+                    <input type="text" id="custom-alias-name" placeholder="Name (e.g. c)" aria-label="Alias name">
+                    <span class="equals-symbol">=</span>
+                    <input type="text" id="custom-alias-value" placeholder="Command (e.g. clear)" aria-label="Alias command">
+                  </div>
+                  <button type="button" id="btn-add-alias" class="panel-btn">Add Alias</button>
+                </div>
+                
+                <h3 class="section-title">Custom Aliases</h3>
+                <div class="custom-aliases-list" id="custom-aliases-list">
+                  <!-- Rendered dynamically by JS -->
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 4. Functions Tab Panel -->
+          <div class="category-panel-view" id="panel-functions" role="tabpanel" style="display: none;">
+            <div class="settings-scroll-box">
+              <div class="functions-section">
+                <h3>Shell Functions</h3>
+                <p class="section-description">Toggle advanced shell utility functions to add to your bashrc configuration.</p>
+                <div class="functions-list">
+                  <div class="function-item">
+                    <div class="function-header">
+                      <label class="toggle-control">
+                        <input type="checkbox" id="fn-toggle-mkcd" checked>
+                        <span class="control-label font-bold">mkcd</span>
+                      </label>
+                    </div>
+                    <p class="function-desc">Creates a directory and immediately changes into it (e.g. <code>mkcd folder_name</code>).</p>
+                  </div>
+                  
+                  <div class="function-item">
+                    <div class="function-header">
+                      <label class="toggle-control">
+                        <input type="checkbox" id="fn-toggle-extract" checked>
+                        <span class="control-label font-bold">extract</span>
+                      </label>
+                    </div>
+                    <p class="function-desc">A smart, universal extraction script that unpacks any zip/tar archive automatically based on extension.</p>
+                  </div>
+                  
+                  <div class="function-item">
+                    <div class="function-header">
+                      <label class="toggle-control">
+                        <input type="checkbox" id="fn-toggle-weather">
+                        <span class="control-label font-bold">weather</span>
+                      </label>
+                    </div>
+                    <p class="function-desc">Fetches a clean command-line weather forecast summary from <code>wttr.in</code>.</p>
+                  </div>
+                  
+                  <div class="function-item">
+                    <div class="function-header">
+                      <label class="toggle-control">
+                        <input type="checkbox" id="fn-toggle-todo">
+                        <span class="control-label font-bold">todo</span>
+                      </label>
+                    </div>
+                    <p class="function-desc">A lightweight, simple to-do list manager stored locally in <code>~/.todo.txt</code>.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 5. Options Tab Panel -->
+          <div class="category-panel-view" id="panel-options" role="tabpanel" style="display: none;">
+            <div class="settings-scroll-box">
+              <div class="options-section">
+                <h3>Shell Behavior (shopt)</h3>
+                <div class="toggles-row-vertical">
+                  <label class="toggle-control">
+                    <input type="checkbox" id="opt-shopt-autocd" checked>
+                    <span class="control-label">autocd (Cd automatically by typing dir name)</span>
+                  </label>
+                  <label class="toggle-control">
+                    <input type="checkbox" id="opt-shopt-cdspell" checked>
+                    <span class="control-label">cdspell (Autocorrect spelling errors in cd path)</span>
+                  </label>
+                  <label class="toggle-control">
+                    <input type="checkbox" id="opt-shopt-globstar" checked>
+                    <span class="control-label">globstar (Enable recursive ** globbing)</span>
+                  </label>
+                </div>
+                
+                <h3 class="section-title">Terminal History Rules</h3>
+                <div class="history-grid">
+                  <div class="form-group">
+                    <label for="input-histsize">Memory History Size (HISTSIZE)</label>
+                    <input type="number" id="input-histsize" value="10000" min="0" max="1000000">
+                  </div>
+                  <div class="form-group">
+                    <label for="input-histfilesize">File History Size (HISTFILESIZE)</label>
+                    <input type="number" id="input-histfilesize" value="20000" min="0" max="1000000">
+                  </div>
+                </div>
+                
+                <div class="toggles-row-vertical" style="margin-top: 12px;">
+                  <label class="toggle-control">
+                    <input type="checkbox" id="opt-hist-ignoredups" checked>
+                    <span class="control-label">Ignore consecutive duplicate entries</span>
+                  </label>
+                  <label class="toggle-control">
+                    <input type="checkbox" id="opt-hist-ignorespace" checked>
+                    <span class="control-label">Ignore commands starting with a space</span>
+                  </label>
+                  <label class="toggle-control">
+                    <input type="checkbox" id="opt-hist-timestamp" checked>
+                    <span class="control-label">Include timestamps in history output</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -118,54 +316,32 @@
         <div class="editor-controls">
           <!-- Tab Headers -->
           <div class="tabs-header" role="tablist">
-            <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-variables" id="btn-tab-variables">Variables</button>
-            <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-editor" id="btn-tab-editor">Raw PS1 Editor</button>
-            <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-instructions" id="btn-tab-instructions">How to Apply</button>
+            <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-instructions" id="btn-tab-instructions">Export ~/.bashrc</button>
+            <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-editor" id="btn-tab-editor">Raw PS1 Prompt Editor</button>
           </div>
 
           <!-- Tab Panels -->
           <div class="tabs-content">
-            <!-- Tab 1: Variables Setup -->
-            <div class="tab-panel active" id="tab-variables" role="tabpanel" aria-labelledby="btn-tab-variables">
-              <div class="variables-grid">
-                <div class="form-group">
-                  <label for="input-username">Username (\u)</label>
-                  <input type="text" id="input-username" value="guest" placeholder="e.g. guest">
+            <!-- Tab 1: Instructions & Export -->
+            <div class="tab-panel active" id="tab-instructions" role="tabpanel" aria-labelledby="btn-tab-instructions">
+              <div class="export-container">
+                <div class="export-block">
+                  <div class="export-header">
+                    <span>Generated ~/.bashrc Code Block</span>
+                    <button id="btn-copy-export" class="copy-btn">Copy to Clipboard</button>
+                  </div>
+                  <pre class="export-code"><code id="code-export-output"># Loading...</code></pre>
                 </div>
                 
-                <div class="form-group">
-                  <label for="input-hostname">Hostname (\h)</label>
-                  <input type="text" id="input-hostname" value="linux" placeholder="e.g. localhost">
-                </div>
-
-                <div class="form-group">
-                  <label for="input-directory">Working Directory (\w)</label>
-                  <input type="text" id="input-directory" value="~/projects/dotbashrc" placeholder="e.g. ~/dev/app">
-                </div>
-
-                <div class="form-group">
-                  <label for="input-git-branch">Git Branch (Simulated)</label>
-                  <div class="git-input-group">
-                    <input type="text" id="input-git-branch" value="main" placeholder="e.g. main">
-                    <label class="switch-toggle" title="Enable Git Branch in preview">
-                      <input type="checkbox" id="toggle-git" checked>
-                      <span class="slider"></span>
-                    </label>
-                  </div>
-                </div>
-
-                <div class="form-group">
-                  <span class="label-text">Shell Status Indicator</span>
-                  <div class="toggles-row">
-                    <label class="toggle-control">
-                      <input type="checkbox" id="toggle-root">
-                      <span class="control-label">Root privileges (\$)</span>
-                    </label>
-                    <label class="toggle-control">
-                      <input type="checkbox" id="toggle-exit-code">
-                      <span class="control-label">Last command failed</span>
-                    </label>
-                  </div>
+                <div class="instruction-steps">
+                  <h3>How to Apply:</h3>
+                  <ol>
+                    <li>Open your terminal.</li>
+                    <li>Open your bash configuration file in an editor: <code>nano ~/.bashrc</code></li>
+                    <li>Scroll to the bottom of the file and paste the copied block of code.</li>
+                    <li>Save and close the file (in nano, press <code>Ctrl+O</code>, <code>Enter</code>, then <code>Ctrl+X</code>).</li>
+                    <li>Apply the changes immediately by running: <code>source ~/.bashrc</code></li>
+                  </ol>
                 </div>
               </div>
             </div>
@@ -211,30 +387,6 @@
                 </div>
               </div>
             </div>
-
-            <!-- Tab 3: Instructions & Export -->
-            <div class="tab-panel" id="tab-instructions" role="tabpanel" aria-labelledby="btn-tab-instructions" style="display: none;">
-              <div class="export-container">
-                <div class="export-block">
-                  <div class="export-header">
-                    <span>Export Code (Add to your ~/.bashrc)</span>
-                    <button id="btn-copy-export" class="copy-btn">Copy to Clipboard</button>
-                  </div>
-                  <pre class="export-code"><code id="code-export-output"># Loading...</code></pre>
-                </div>
-                
-                <div class="instruction-steps">
-                  <h3>How to Apply:</h3>
-                  <ol>
-                    <li>Open your terminal.</li>
-                    <li>Open your bash configuration file in an editor, e.g. <code>nano ~/.bashrc</code></li>
-                    <li>Scroll to the bottom of the file and paste the copied block of code.</li>
-                    <li>Save and close the file (in nano, press <code>Ctrl+O</code>, <code>Enter</code>, then <code>Ctrl+X</code>).</li>
-                    <li>Apply the changes by running: <code>source ~/.bashrc</code></li>
-                  </ol>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </section>
@@ -242,7 +394,7 @@
 
     <!-- Footer -->
     <footer class="app-footer">
-      <p>&copy; 2026 Bashrc PS1 Visualizer. Designed with Premium Terminal Aesthetics.</p>
+      <p>&copy; 2026 dotbashrc. Designed with Premium Terminal Aesthetics.</p>
     </footer>
   </div>
 
