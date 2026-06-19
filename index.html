@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bashrc PS1 Visualizer & Generator</title>
+  <meta name="description" content="A sleek, interactive bash prompt (PS1) designer, customizer, and visualizer. Choose beautiful prompt templates, preview them in a live simulated terminal, and copy bash configuration code instantly.">
+  
+  <!-- SEO & OpenGraph Meta Tags -->
+  <meta property="og:title" content="Bashrc PS1 Visualizer & Generator">
+  <meta property="og:description" content="Design, preview, and build custom bash prompts interactively with a live terminal mockup.">
+  <meta property="og:type" content="website">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-mode">
+  <div id="app-wrapper">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-logo">
+        <div class="logo-icon">🐚</div>
+        <div class="logo-text">
+          <h1>PS1 Visualizer</h1>
+          <span class="logo-subtitle">Interactive Bash Prompt Designer</span>
+        </div>
+      </div>
+      <div class="header-controls">
+        <!-- Global Theme Toggle -->
+        <button id="btn-theme-toggle" class="icon-button" aria-label="Toggle light/dark theme" title="Toggle Light/Dark Theme">
+          <span class="theme-icon-dark">🌙</span>
+          <span class="theme-icon-light" style="display: none;">☀️</span>
+        </button>
+        <!-- Terminal Color Palette Selector -->
+        <div class="select-wrapper">
+          <label for="select-terminal-theme" class="sr-only">Terminal Theme</label>
+          <select id="select-terminal-theme" title="Select Terminal Theme">
+            <option value="dracula">Dracula (Dark)</option>
+            <option value="onedark">One Dark (Dark)</option>
+            <option value="nord">Nord (Dark)</option>
+            <option value="retro-green">Matrix Green (Retro)</option>
+            <option value="solarized-light">Solarized (Light)</option>
+            <option value="github-light">GitHub (Light)</option>
+          </select>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="app-content">
+      <!-- Left Panel: Predefined Templates Catalog -->
+      <section id="catalog-section" class="panel catalog-panel" aria-labelledby="catalog-title">
+        <div class="panel-header">
+          <h2 id="catalog-title">Prompt Templates</h2>
+          <span class="panel-badge" id="catalog-count">0 Themes</span>
+        </div>
+        <div class="catalog-filters">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="search-templates" placeholder="Search prompts..." aria-label="Search prompt templates">
+          </div>
+          <div class="filter-tags" id="category-filters">
+            <button class="filter-btn active" data-category="all">All</button>
+            <button class="filter-btn" data-category="minimal">Minimal</button>
+            <button class="filter-btn" data-category="colorful">Colorful</button>
+            <button class="filter-btn" data-category="powerline">Powerline</button>
+            <button class="filter-btn" data-category="git">Git-Ready</button>
+          </div>
+        </div>
+        <!-- Scrollable templates container -->
+        <div class="templates-list" id="templates-list">
+          <!-- Dynamic rendering via JS -->
+        </div>
+      </section>
+
+      <!-- Right Panel: Terminal Preview & Customizer -->
+      <section id="workspace-section" class="panel workspace-panel">
+        <!-- Terminal Window Mockup -->
+        <div class="terminal-window" id="terminal-window" data-theme="dracula">
+          <div class="terminal-titlebar">
+            <div class="terminal-dots">
+              <span class="dot close"></span>
+              <span class="dot minimize"></span>
+              <span class="dot expand"></span>
+            </div>
+            <div class="terminal-title" id="terminal-window-title">bash — guest@linux: ~/projects</div>
+            <div class="terminal-actions">
+              <button id="btn-clear-terminal" class="terminal-action-btn" title="Clear terminal screen">Clear</button>
+            </div>
+          </div>
+          
+          <!-- Terminal Screen Body -->
+          <div class="terminal-body" id="terminal-screen">
+            <!-- Simulated Scrollback History -->
+            <div id="terminal-history">
+              <div class="history-line text-muted">Welcome to the interactive Bash Prompt Visualizer.</div>
+              <div class="history-line text-muted">Type commands in the prompt below! Try "help", "ls", "git status", or "cowsay hello".</div>
+            </div>
+            
+            <!-- Active Prompt Row -->
+            <div class="active-prompt-row">
+              <span class="prompt-container" id="terminal-prompt-preview">
+                <!-- Rendered PS1 spans go here -->
+              </span>
+              <div class="input-container">
+                <input type="text" id="terminal-input" autocomplete="off" spellcheck="false" aria-label="Terminal input" autofocus>
+                <span class="cursor" id="terminal-cursor"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Editor & Settings Controls -->
+        <div class="editor-controls">
+          <!-- Tab Headers -->
+          <div class="tabs-header" role="tablist">
+            <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-variables" id="btn-tab-variables">Variables</button>
+            <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-editor" id="btn-tab-editor">Raw PS1 Editor</button>
+            <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-instructions" id="btn-tab-instructions">How to Apply</button>
+          </div>
+
+          <!-- Tab Panels -->
+          <div class="tabs-content">
+            <!-- Tab 1: Variables Setup -->
+            <div class="tab-panel active" id="tab-variables" role="tabpanel" aria-labelledby="btn-tab-variables">
+              <div class="variables-grid">
+                <div class="form-group">
+                  <label for="input-username">Username (\u)</label>
+                  <input type="text" id="input-username" value="guest" placeholder="e.g. guest">
+                </div>
+                
+                <div class="form-group">
+                  <label for="input-hostname">Hostname (\h)</label>
+                  <input type="text" id="input-hostname" value="linux" placeholder="e.g. localhost">
+                </div>
+
+                <div class="form-group">
+                  <label for="input-directory">Working Directory (\w)</label>
+                  <input type="text" id="input-directory" value="~/projects/dotbashrc" placeholder="e.g. ~/dev/app">
+                </div>
+
+                <div class="form-group">
+                  <label for="input-git-branch">Git Branch (Simulated)</label>
+                  <div class="git-input-group">
+                    <input type="text" id="input-git-branch" value="main" placeholder="e.g. main">
+                    <label class="switch-toggle" title="Enable Git Branch in preview">
+                      <input type="checkbox" id="toggle-git" checked>
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <span class="label-text">Shell Status Indicator</span>
+                  <div class="toggles-row">
+                    <label class="toggle-control">
+                      <input type="checkbox" id="toggle-root">
+                      <span class="control-label">Root privileges (\$)</span>
+                    </label>
+                    <label class="toggle-control">
+                      <input type="checkbox" id="toggle-exit-code">
+                      <span class="control-label">Last command failed</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab 2: Raw PS1 Editor -->
+            <div class="tab-panel" id="tab-editor" role="tabpanel" aria-labelledby="btn-tab-editor" style="display: none;">
+              <div class="editor-layout">
+                <div class="editor-textarea-wrapper">
+                  <label for="input-ps1" class="sr-only">Raw PS1 String</label>
+                  <textarea id="input-ps1" spellcheck="false" aria-label="Raw PS1 Value">\[\e[01;32m\]\u@\h\[\e[00m\]:\[\e[01;34m\]\w\[\e[00m\]\$ </textarea>
+                </div>
+                
+                <!-- Quick Insertion Bar -->
+                <div class="editor-shortcuts">
+                  <div class="shortcut-group">
+                    <span class="shortcut-group-label">Macros:</span>
+                    <button class="btn-insert" data-value="\u" title="Insert username">Username</button>
+                    <button class="btn-insert" data-value="\h" title="Insert hostname">Host</button>
+                    <button class="btn-insert" data-value="\w" title="Insert full working directory path">Dir (Full)</button>
+                    <button class="btn-insert" data-value="\W" title="Insert working directory base name">Dir (Base)</button>
+                    <button class="btn-insert" data-value="\t" title="Insert current time (HH:MM:SS)">Time</button>
+                    <button class="btn-insert" data-value="\$" title="Insert '$' (or '#' for root)">Symbol</button>
+                    <button class="btn-insert" data-value="\n" title="Insert newline character">Newline</button>
+                  </div>
+                  <div class="shortcut-group">
+                    <span class="shortcut-group-label">Colors:</span>
+                    <button class="btn-insert color-badge bg-reset" data-value="\[\e[00m\]" title="Reset text color/formatting">Reset</button>
+                    <button class="btn-insert color-badge bg-green" data-value="\[\e[01;32m\]" title="Bold Green text">Green</button>
+                    <button class="btn-insert color-badge bg-blue" data-value="\[\e[01;34m\]" title="Bold Blue text">Blue</button>
+                    <button class="btn-insert color-badge bg-cyan" data-value="\[\e[01;36m\]" title="Bold Cyan text">Cyan</button>
+                    <button class="btn-insert color-badge bg-yellow" data-value="\[\e[01;33m\]" title="Bold Yellow text">Yellow</button>
+                    <button class="btn-insert color-badge bg-magenta" data-value="\[\e[01;35m\]" title="Bold Magenta text">Magenta</button>
+                    <button class="btn-insert color-badge bg-red" data-value="\[\e[01;31m\]" title="Bold Red text">Red</button>
+                  </div>
+                </div>
+
+                <!-- Live PS1 Breakdown Inspector -->
+                <div class="inspector-section">
+                  <h4>Prompt Inspector & Syntax Breakdown</h4>
+                  <div class="inspector-elements" id="ps1-breakdown">
+                    <!-- Dynamic breakdown via JS -->
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab 3: Instructions & Export -->
+            <div class="tab-panel" id="tab-instructions" role="tabpanel" aria-labelledby="btn-tab-instructions" style="display: none;">
+              <div class="export-container">
+                <div class="export-block">
+                  <div class="export-header">
+                    <span>Export Code (Add to your ~/.bashrc)</span>
+                    <button id="btn-copy-export" class="copy-btn">Copy to Clipboard</button>
+                  </div>
+                  <pre class="export-code"><code id="code-export-output"># Loading...</code></pre>
+                </div>
+                
+                <div class="instruction-steps">
+                  <h3>How to Apply:</h3>
+                  <ol>
+                    <li>Open your terminal.</li>
+                    <li>Open your bash configuration file in an editor, e.g. <code>nano ~/.bashrc</code></li>
+                    <li>Scroll to the bottom of the file and paste the copied block of code.</li>
+                    <li>Save and close the file (in nano, press <code>Ctrl+O</code>, <code>Enter</code>, then <code>Ctrl+X</code>).</li>
+                    <li>Apply the changes by running: <code>source ~/.bashrc</code></li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>&copy; 2026 Bashrc PS1 Visualizer. Designed with Premium Terminal Aesthetics.</p>
+    </footer>
+  </div>
+
+  <!-- App Main Logic Script -->
+  <script src="app.js"></script>
+</body>
+</html>
